@@ -147,7 +147,17 @@ describe('AI assistant API (scripted agent)', () => {
 
     it('records token usage of the run in diagnostics', async () => {
       const run = await startRun(sara, KARIM);
-      expect(run.diagnostics.usage).toEqual({ inputTokens: 1000, outputTokens: 200, totalTokens: 1200 });
+      // The fake agent reports no cache use, and its model has no price: cost is null, not 0.
+      expect(run.diagnostics.usage).toEqual({
+        inputTokens: 1000,
+        outputTokens: 200,
+        totalTokens: 1200,
+        cacheReadTokens: 0,
+        cacheWriteTokens: 0,
+        cacheHitRatio: 0,
+        estimatedCostUsd: null,
+        estimatedCostWithoutCacheUsd: null,
+      });
     });
 
     it('accepts an explicit messageId of the lead', async () => {
@@ -280,7 +290,16 @@ describe('AI assistant API (scripted agent)', () => {
       const run = await startRun(sara, leadId);
       expect(run.status).toBe('failed');
       expect(run.model).toBe('fake-scripted');
-      expect(run.diagnostics.usage).toEqual({ inputTokens: 500, outputTokens: 50, totalTokens: 550 });
+      expect(run.diagnostics.usage).toEqual({
+        inputTokens: 500,
+        outputTokens: 50,
+        totalTokens: 550,
+        cacheReadTokens: 0,
+        cacheWriteTokens: 0,
+        cacheHitRatio: 0,
+        estimatedCostUsd: null,
+        estimatedCostWithoutCacheUsd: null,
+      });
       const fetched = await http().get(`${runsPath(leadId)}/${run.id}`).set(bearer(sara)).expect(200);
       expect(fetched.body).toEqual(run);
     });

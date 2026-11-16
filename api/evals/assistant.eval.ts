@@ -9,7 +9,7 @@ import { DEFAULT_ASSISTANT_MODEL } from '../src/assistant/agent/llm.gateway';
 import { ASSISTANT_AGENT } from '../src/assistant/assistant.types';
 import { CASES, CaseRecorder, EvalContext, KarimShared, lead } from './cases';
 import { ApiClient } from './lib/api';
-import { CaseResult, costUsd, renderReport, renderTable, verdictOf } from './lib/eval-lib';
+import { CaseResult, costUsd, costWithoutCacheUsd, renderReport, renderTable, verdictOf } from './lib/eval-lib';
 import { gradeReasons } from './lib/grader';
 
 /**
@@ -82,10 +82,16 @@ describe('assistant evals (real model)', () => {
         (sum, r) => {
           const u = r.run?.diagnostics?.usage;
           return u
-            ? { inputTokens: sum.inputTokens + u.inputTokens, outputTokens: sum.outputTokens + u.outputTokens, totalTokens: sum.totalTokens + u.totalTokens }
+            ? {
+                inputTokens: sum.inputTokens + u.inputTokens,
+                outputTokens: sum.outputTokens + u.outputTokens,
+                totalTokens: sum.totalTokens + u.totalTokens,
+                cacheReadTokens: sum.cacheReadTokens + (u.cacheReadTokens ?? 0),
+                cacheWriteTokens: sum.cacheWriteTokens + (u.cacheWriteTokens ?? 0),
+              }
             : sum;
         },
-        { inputTokens: 0, outputTokens: 0, totalTokens: 0 },
+        { inputTokens: 0, outputTokens: 0, totalTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 },
       );
       const models = [...new Set(rec.runs.map((r) => r.run?.model).filter((m): m is string => typeof m === 'string'))];
       const result: CaseResult = {
@@ -97,6 +103,7 @@ describe('assistant evals (real model)', () => {
         latencyMs: rec.runs.reduce((s, r) => s + r.latencyMs, 0),
         usage,
         costUsd: costUsd(models[0] ?? model, usage),
+        costWithoutCacheUsd: costWithoutCacheUsd(models[0] ?? model, usage),
         models,
         quality:
           scores.length === 0

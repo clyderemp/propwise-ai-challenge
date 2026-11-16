@@ -2,6 +2,7 @@
  * Pure helpers for the eval suite: expected dates, cost, verdicts and the markdown report.
  * No I/O here, so they are unit-tested (eval-lib.spec.ts) with the normal `pnpm test`.
  */
+import { priceUsage } from '../../src/assistant/agent/pricing';
 
 export interface Assertion {
   name: string;
@@ -14,9 +15,12 @@ export interface Assertion {
 export type Verdict = 'PASS' | 'FAIL';
 
 export interface Usage {
+  /** Whole prompt: uncached + cache read + cache write. */
   inputTokens: number;
   outputTokens: number;
   totalTokens?: number;
+  cacheReadTokens?: number;
+  cacheWriteTokens?: number;
 }
 
 export interface QualityScore {
@@ -40,6 +44,8 @@ export interface CaseResult {
   latencyMs: number;
   usage: Required<Usage>;
   costUsd: number | null;
+  /** The same tokens billed with no prompt cache. */
+  costWithoutCacheUsd: number | null;
   models: string[];
   quality: QualityScore | null;
 }
@@ -78,18 +84,18 @@ export function firstMondayAfterAt10(sentAt: string): string {
   return at10(date);
 }
 
-/** USD per million tokens, from the Claude pricing table (2026-11). */
-const PRICES: Record<string, { input: number; output: number }> = {
-  'claude-sonnet-5-5': { input: 2, output: 10 },
-  'claude-opus-5-5': { input: 4, output: 20 },
-  'claude-haiku-5-5': { input: 0.1, output: 0.5 },
-  'claude-sonnet-5': { input: 2, output: 10 },
-};
+function priced(model: string, usage: Usage) {
+  return priceUsage(model, { ...usage, totalTokens: usage.totalTokens ?? usage.inputTokens + usage.outputTokens });
+}
 
+/** Cache-aware cost in USD (prices in src/assistant/agent/pricing.ts); null for an unknown model. */
 export function costUsd(model: string, usage: Usage): number | null {
-  const price = PRICES[model];
-  if (!price) return null;
-  return (usage.inputTokens * price.input + usage.outputTokens * price.output) / 1_000_000;
+  return priced(model, usage).estimatedCostUsd;
+}
+
+/** What the same tokens would cost with no prompt cache. */
+export function costWithoutCacheUsd(model: string, usage: Usage): number | null {
+  return priced(model, usage).estimatedCostWithoutCacheUsd;
 }
 
 export function verdictOf(assertions: readonly Assertion[]): Verdict {
@@ -116,6 +122,16 @@ function fmtCost(n: number | null): string {
   return n === null ? 'n/a' : `$${n.toFixed(4)}`;
 }
 
+function fmtSaving(withCache: number | null, without: number | null): string {
+  if (withCache === null || without === null) return 'n/a';
+  const saved = without - withCache;
+  return without > 0 ? `$${saved.toFixed(4)} (${Math.round((saved / without) * 100)}%)` : `$${saved.toFixed(4)}`;
+}
+
+function sumNullable(values: ReadonlyArray<number | null>): number | null {
+  return values.some((v) => v === null) ? null : values.reduce<number>((s, v) => s + (v ?? 0), 0);
+}
+
 function fmtQuality(q: QualityScore | null): string {
   return q ? `${q.meanScore.toFixed(1)}/5 (${q.supported}/${q.graded} supported)` : '-';
 }
@@ -124,11 +140,11 @@ export function renderTable(results: readonly CaseResult[]): string {
   const rows = results.map((r) => {
     const gating = r.assertions.filter((a) => a.gating);
     const passed = gating.filter((a) => a.pass).length;
-    return `| ${r.id} | ${r.title} | ${r.covers} | ${r.verdict} | ${passed}/${gating.length} | ${(r.latencyMs / 1000).toFixed(1)} s | ${fmtInt(r.usage.totalTokens)} | ${fmtCost(r.costUsd)} | ${r.models.join(', ') || '-'} |`;
+    return `| ${r.id} | ${r.title} | ${r.covers} | ${r.verdict} | ${passed}/${gating.length} | ${(r.latencyMs / 1000).toFixed(1)} s | ${fmtInt(r.usage.totalTokens)} | ${fmtInt(r.usage.cacheReadTokens)} | ${fmtInt(r.usage.cacheWriteTokens)} | ${fmtCost(r.costUsd)} | ${fmtSaving(r.costUsd, r.costWithoutCacheUsd)} | ${r.models.join(', ') || '-'} |`;
   });
   return [
-    '| Case | Title | Covers | Verdict | Gating assertions | Latency | Tokens | Cost | Model |',
-    '| --- | --- | --- | --- | --- | --- | --- | --- | --- |',
+    '| Case | Title | Covers | Verdict | Gating assertions | Latency | Tokens | Cache read | Cache write | Cost | Cache saved | Model |',
+    '| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |',
     ...rows,
   ].join('\n');
 }
@@ -136,6 +152,11 @@ export function renderTable(results: readonly CaseResult[]): string {
 export function renderReport(report: Report): string {
   const passed = report.results.filter((r) => r.verdict === 'PASS').length;
   const tokens = report.results.reduce((sum, r) => sum + r.usage.totalTokens, 0);
+  const input = report.results.reduce((sum, r) => sum + r.usage.inputTokens, 0);
+  const cacheRead = report.results.reduce((sum, r) => sum + r.usage.cacheReadTokens, 0);
+  const cacheWrite = report.results.reduce((sum, r) => sum + r.usage.cacheWriteTokens, 0);
+  const cost = sumNullable(report.results.map((r) => r.costUsd));
+  const costWithout = sumNullable(report.results.map((r) => r.costWithoutCacheUsd));
   const lines: string[] = [
     '# Assistant eval report',
     '',
@@ -143,6 +164,8 @@ export function renderReport(report: Report): string {
     `- Model: ${report.model}`,
     `- Result: ${passed}/${report.results.length} cases passed`,
     `- Tokens (summed per case; shared runs count once per case that uses them): ${fmtInt(tokens)}`,
+    `- Prompt cache: ${fmtInt(cacheRead)} tokens read, ${fmtInt(cacheWrite)} written (${input > 0 ? Math.round((cacheRead / input) * 100) : 0}% of input read from cache)`,
+    `- Cost: ${fmtCost(cost)} with the cache, ${fmtCost(costWithout)} without it: saved ${fmtSaving(cost, costWithout)}`,
     '',
     'Verdicts come only from gating assertions: facts the code guarantees, and subset checks where the model has a choice.',
     'The quality column is a model-graded, non-gating score of whether each reason is supported by the listing data.',

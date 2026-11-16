@@ -22,6 +22,7 @@ import {
   ProposedAction as ProposedActionEntity,
   Task,
 } from '../entities';
+import { priceUsage } from './agent/pricing';
 import { CreateAssistantRunDto, toAssistantRunDto, toProposedActionDto } from './assistant.dto';
 import {
   AgentMessage,
@@ -260,7 +261,7 @@ export class AssistantService implements OnApplicationBootstrap, BeforeApplicati
       run.model = this.agent.modelId ?? null;
       const usage = error instanceof AgentRunError ? error.usage : caught instanceof AgentRunError ? caught.usage : undefined;
       if (usage) {
-        run.diagnostics = { droppedRecommendations: [], budgetBand: null, searchSkipped: false, usage };
+        run.diagnostics = { droppedRecommendations: [], budgetBand: null, searchSkipped: false, usage: priceUsage(run.model, usage) };
       }
       run.finishedAt = new Date();
       actions = [];
@@ -466,7 +467,7 @@ export class AssistantService implements OnApplicationBootstrap, BeforeApplicati
       droppedRecommendations: validation.dropped,
       budgetBand: validation.budgetBand,
       searchSkipped: outcome.searchSkipped,
-      usage: outcome.usage ?? null,
+      usage: outcome.usage ? priceUsage(outcome.model, outcome.usage) : null,
     };
     run.dataWarnings = dataWarnings;
     run.finishedAt = new Date();

@@ -6,6 +6,8 @@
  * "extra" is an additive field the contract allows.
  */
 
+import type { PricedUsage } from './agent/pricing';
+
 // ---------------------------------------------------------------------------
 // Enumerations
 // ---------------------------------------------------------------------------
@@ -147,14 +149,17 @@ export interface RunDiagnostics {
   budgetBand: BudgetBand | null;
   /** True when Phase A extracted no search criteria, so no listing search was run. */
   searchSkipped: boolean;
-  /** Model tokens the run used (both phases). Absent on runs stored before this was recorded. */
-  usage?: TokenUsage | null;
+  /** Model tokens the run used (both phases), with cache use and estimated cost. Absent on runs stored before this was recorded. */
+  usage?: PricedUsage | null;
 }
 
+/** What an agent reports. inputTokens is the whole prompt: uncached + cache read + cache write. */
 export interface TokenUsage {
   inputTokens: number;
   outputTokens: number;
   totalTokens: number;
+  cacheReadTokens?: number;
+  cacheWriteTokens?: number;
 }
 
 export interface DataWarning {
