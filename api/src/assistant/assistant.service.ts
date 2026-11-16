@@ -41,7 +41,8 @@ import {
 } from './assistant.types';
 import { AssistantTelemetry, RunContextIds } from './observability/assistant-telemetry';
 import { AssistantMetrics, computeAssistantMetrics } from './observability/metrics';
-import { resolveDueAt } from './domain/follow-up-date';
+import { resolveFollowUpDue } from './domain/follow-up-date';
+import { resolveTimeline, staleTimelineNote, timelineTaskNote } from './domain/timeline';
 import { computeListingFlags, ListingRecord, toListingRecord } from './domain/listing-facts';
 import { reconcileSummary, validateRecommendations } from './domain/matching';
 import { emptyRequirements } from './domain/requirements';
@@ -488,19 +489,27 @@ export class AssistantService implements OnApplicationBootstrap, BeforeApplicati
       .map((l) => ({ propertyId: l.id, reference: l.reference, flags: computeListingFlags(l, listings) }))
       .filter((w) => w.flags.length > 0);
 
+    // The lead's purchase/move timeline, resolved in the agent's zone. The window is anchored on sentAt;
+    // the analysis time only decides whether it had already ended (stale).
+    const timeline = outcome.extraction.timeline
+      ? resolveTimeline(outcome.extraction.timeline, message.sentAt, timeZone, new Date(timings.startedAt))
+      : null;
+
     // At most one follow-up per run. The date is always computed here, never taken from the model.
+    // An urgent timeline asks for a prompt follow-up even when the lead did not ask to be contacted.
     let draft: { task: FollowUpTaskDraft; needsClarification: string | null } | null = null;
     const followUp =
       outcome.followUp ??
-      (outcome.extraction.leadAskedForFollowUp
+      (outcome.extraction.leadAskedForFollowUp || timeline?.urgent
         ? { title: `Follow up with ${lead.name}`, notes: null, intent: outcome.extraction.followUp }
         : null);
     if (followUp) {
-      const due = resolveDueAt(followUp.intent, message.sentAt, timeZone);
+      const due = resolveFollowUpDue(followUp.intent, timeline, message.sentAt, timeZone);
+      const notes = due.fromTimeline && timeline ? [followUp.notes, timelineTaskNote(timeline)].filter(Boolean).join('\n\n') : followUp.notes;
       draft = {
         task: {
           title: clamp(followUp.title.trim() || `Follow up with ${lead.name}`, MAX_TITLE),
-          notes: followUp.notes === null ? null : clamp(followUp.notes, MAX_NOTES),
+          notes: notes === null ? null : clamp(notes, MAX_NOTES),
           dueAt: due.dueAt,
         },
         needsClarification: due.needsClarification,
@@ -510,9 +519,10 @@ export class AssistantService implements OnApplicationBootstrap, BeforeApplicati
     run.status = 'completed';
     run.error = null;
     run.model = outcome.model;
-    run.requirements = outcome.requirements;
+    run.requirements = { ...outcome.requirements, timeline };
     run.recommendations = validation.kept;
-    run.summary = withDroppedNote(reconcileSummary(outcome.summary, validation.kept, validation.dropped), validation.dropped);
+    const summary = withDroppedNote(reconcileSummary(outcome.summary, validation.kept, validation.dropped), validation.dropped);
+    run.summary = timeline?.stale ? `${summary} ${staleTimelineNote(timeline)}`.trim() : summary;
     run.trace = longest(outcome.trace, recorded);
     run.diagnostics = {
       droppedRecommendations: validation.dropped,

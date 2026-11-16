@@ -109,3 +109,13 @@ function formatRange(a: CalendarDate, b: CalendarDate): string {
   if (a.month !== b.month) return `${a.day} ${MONTHS[a.month - 1]}-${formatDay(b)}`;
   return `${a.day}-${formatDay(b)}`;
 }
+
+/** Task note when the timeline set the follow-up date. */
+export function timelineTaskNote(t: ResolvedTimeline): string {
+  return `Timeline: ${t.label}${t.quote ? `, "${t.quote}"` : ''}. Urgent, so follow up on the next working day after the message.`;
+}
+
+/** Summary note when the window had ended before the analysis. */
+export function staleTimelineNote(t: ResolvedTimeline): string {
+  return `Note: the lead's timeline, ${t.label}, had already ended when this message was analysed. Check whether it still applies.`;
+}

@@ -277,6 +277,72 @@ describe('AI assistant API (scripted agent)', () => {
     });
   });
 
+  describe("the lead's purchase timeline", () => {
+    /** Next Monday-to-Friday Dubai date after an instant, at 10:00 +04:00. */
+    function nextWorkingDayAt10(sentAt: string): string {
+      const local = new Date(new Date(sentAt).getTime() + 4 * 3_600_000);
+      const d = new Date(Date.UTC(local.getUTCFullYear(), local.getUTCMonth(), local.getUTCDate() + 1));
+      while (d.getUTCDay() === 0 || d.getUTCDay() === 6) d.setUTCDate(d.getUTCDate() + 1);
+      return `${d.toISOString().slice(0, 10)}T10:00:00+04:00`;
+    }
+
+    it('"ready to buy this week" with no contact timing: due the next working day at 10:00, with the timeline in the notes', async () => {
+      const sentAt = new Date(Date.now() - 60_000).toISOString();
+      const leadId = await newLead(sara, 'Timeline this week', [{ direction: 'inbound', body: '5-bedroom villa in Dubai Marina under 900k. Ready to buy this week.', sentAt }]);
+      const run = await startRun(sara, leadId);
+      expect(run.status).toBe('completed');
+      expect(run.requirements.timeline).toMatchObject({ kind: 'this_week', urgent: true, stale: false });
+      expect(run.requirements.timeline.label).toMatch(/^this week \(\d{1,2}[- ]/);
+      expect(run.proposedActions).toHaveLength(1);
+      const [action] = run.proposedActions;
+      expect(action.needsClarification).toBeNull();
+      expect(action.task.dueAt).toBe(nextWorkingDayAt10(sentAt));
+      expect(action.task.notes).toContain(run.requirements.timeline.label);
+      expect(run.summary).not.toMatch(/already (ended|passed)/i);
+    });
+
+    it('a "this week" message from 9 days before the analysis is stale: the summary says so, and the date stays anchored on sentAt', async () => {
+      const sentAt = '2026-11-02T06:00:00Z'; // Mon 2 Nov 2026, 10:00 in Dubai: the week was 2-8 Nov
+      const leadId = await newLead(sara, 'Timeline stale', [{ direction: 'inbound', body: '2-bedroom apartment in Dubai Marina. Ready to buy this week.', sentAt }]);
+      const run = await startRun(sara, leadId);
+      expect(run.requirements.timeline).toMatchObject({ kind: 'this_week', windowStart: '2026-11-02', windowEnd: '2026-11-08', label: 'this week (2-8 Nov 2026)', urgent: true, stale: true });
+      expect(run.proposedActions[0].task.dueAt).toBe('2026-11-03T10:00:00+04:00');
+      expect(run.summary).toContain('this week (2-8 Nov 2026)');
+      expect(run.summary).toMatch(/already (ended|passed)/i);
+    });
+
+    it('an urgent timeline proposes a follow-up even when the lead did not ask for one', async () => {
+      const sentAt = '2026-11-13T06:00:00Z'; // Fri 13 Nov 2026 -> Mon 16 Nov
+      const leadId = await newLead(sara, 'Timeline next month', [{ direction: 'inbound', body: 'Looking to rent a 2-bed in Business Bay, moving in next month.', sentAt }]);
+      const run = await startRun(sara, leadId);
+      expect(run.requirements.timeline).toMatchObject({ kind: 'next_month', windowStart: '2026-12-01', windowEnd: '2026-12-31', urgent: true });
+      expect(run.proposedActions).toHaveLength(1);
+      expect(run.proposedActions[0]).toMatchObject({ needsClarification: null, task: { dueAt: '2026-11-16T10:00:00+04:00' } });
+      expect(run.proposedActions[0].task.notes).toContain('next month (1-31 Dec 2026)');
+    });
+
+    it('explicit contact timing wins over the timeline', async () => {
+      const sentAt = '2026-11-16T06:00:00Z'; // Mon 16 Nov 2026
+      const leadId = await newLead(sara, 'Timeline vs tomorrow', [{ direction: 'inbound', body: '2-bedroom apartment in Dubai Marina, buying next month. Call me tomorrow.', sentAt }]);
+      const run = await startRun(sara, leadId);
+      expect(run.requirements.timeline).toMatchObject({ kind: 'next_month', urgent: true });
+      expect(run.proposedActions[0].task.dueAt).toBe('2026-11-17T10:00:00+04:00');
+      expect(run.proposedActions[0].task.notes ?? '').not.toContain('next month (');
+    });
+
+    it('"no rush" proposes no dated follow-up', async () => {
+      const leadId = await newLead(sara, 'Timeline no rush', [{ direction: 'inbound', body: '2-bedroom apartment in Dubai Marina, no rush, maybe next year.', sentAt: '2026-11-16T06:00:00Z' }]);
+      const run = await startRun(sara, leadId);
+      expect(run.requirements.timeline).toMatchObject({ kind: 'no_rush', urgent: false });
+      expect(run.proposedActions.every((a: Json) => a.task.dueAt === null)).toBe(true);
+    });
+
+    it('a message with no timeline has requirements.timeline null', async () => {
+      const run = await startRun(sara, KARIM);
+      expect(run.requirements.timeline).toBeNull();
+    });
+  });
+
   describe('failures', () => {
     it.each([
       ['a tool', '[fake:fail-tool]'],

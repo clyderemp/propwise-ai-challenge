@@ -13,6 +13,7 @@ import {
   Extraction,
   FollowUpIntent,
   LeadIntent,
+  TimelineIntent,
   TraceEntry,
 } from './assistant.types';
 import { emptyExtractedRequirements, hasSearchCriteria, toContractRequirements } from './domain/requirements';
@@ -162,7 +163,22 @@ function extract(body: string, agencyAreas: readonly string[]): Extraction {
   }
   r.listingReferences = [...new Set(text.match(/\b[A-Z]{2,4}-\d{3,5}\b/g) ?? [])];
 
-  return { requirements: r, ...followUpOf(text), timeline: { kind: 'none', days: null, month: null, day: null, year: null, quote: null } };
+  return { requirements: r, ...followUpOf(text), timeline: timelineOf(text) };
+}
+
+function timelineOf(text: string): TimelineIntent {
+  const base: TimelineIntent = { kind: 'none', days: null, month: null, day: null, year: null, quote: null };
+  const rules: Array<[RegExp, TimelineIntent['kind']]> = [
+    [/[^.,]*\bthis week\b/i, 'this_week'],
+    [/[^.,]*\bnext month\b/i, 'next_month'],
+    [/\bno rush\b/i, 'no_rush'],
+    [/\b(asap|urgently)\b/i, 'asap'],
+  ];
+  for (const [re, kind] of rules) {
+    const m = re.exec(text);
+    if (m) return { ...base, kind, quote: m[0].trim() };
+  }
+  return base;
 }
 
 function followUpOf(text: string): { followUp: FollowUpIntent; leadAskedForFollowUp: boolean } {

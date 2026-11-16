@@ -1,5 +1,5 @@
 import { TimelineIntent } from '../assistant.types';
-import { resolveTimeline } from './timeline';
+import { resolveTimeline, staleTimelineNote, timelineTaskNote } from './timeline';
 
 const DUBAI = 'Asia/Dubai';
 
@@ -137,5 +137,23 @@ describe('resolveTimeline', () => {
       const r = resolveTimeline(thisWeek, at('2026-11-16T05:00:00Z'), 'America/Los_Angeles', at('2026-11-16T05:00:00Z'));
       expect([r?.windowStart, r?.windowEnd]).toEqual(['2026-11-09', '2026-11-15']);
     });
+  });
+});
+
+describe('timeline notes', () => {
+  const lina = resolveTimeline(thisWeek, at('2026-11-16T06:00:00Z'), DUBAI, at('2026-11-16T07:00:00Z'))!;
+
+  it('the task note gives the label and the quote, and says why the date is the next working day', () => {
+    expect(timelineTaskNote(lina)).toBe('Timeline: this week (16-22 Nov 2026), "Ready to buy this week". Urgent, so follow up on the next working day after the message.');
+  });
+
+  it('the task note leaves out a missing quote', () => {
+    expect(timelineTaskNote({ ...lina, quote: null })).toBe('Timeline: this week (16-22 Nov 2026). Urgent, so follow up on the next working day after the message.');
+  });
+
+  it('the stale note names the window and says it already ended', () => {
+    expect(staleTimelineNote({ ...lina, stale: true })).toBe(
+      "Note: the lead's timeline, this week (16-22 Nov 2026), had already ended when this message was analysed. Check whether it still applies.",
+    );
   });
 });
