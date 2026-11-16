@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { ApiError, type AssistantRun, type LeadDetail, type ProposedAction, type Task } from '@/lib/api';
+import { ApiError, type AssistantRun, type AssistantTimeline, type LeadDetail, type ProposedAction, type Task } from '@/lib/api';
 import { API_URL } from '@/lib/api';
 import { AssistantPanel, type AssistantClient } from './AssistantPanel';
 
@@ -152,6 +152,50 @@ describe('AssistantPanel', () => {
     // Shown in the agent's timezone.
     expect(within(followUp).getByText(/16 Oct 2026.*10:00/)).toBeInTheDocument();
     expect(within(followUp).getByText(/Pending approval/i)).toBeInTheDocument();
+  });
+
+  describe('the lead timeline', () => {
+    const thisWeek: AssistantTimeline = {
+      kind: 'this_week',
+      quote: 'Ready to buy this week',
+      windowStart: '2026-11-16',
+      windowEnd: '2026-11-22',
+      window: '16-22 Nov 2026',
+      label: 'this week (16-22 Nov 2026)',
+      urgent: true,
+      stale: false,
+    };
+    const withTimeline = (timeline: AssistantTimeline | null) => completedRun({ requirements: { ...completedRun().requirements, timeline } });
+
+    it('shows the timeline with its window and urgency', async () => {
+      renderPanel(fakeClient({ startRun: vi.fn().mockResolvedValue(withTimeline(thisWeek)) }));
+      await analyse();
+      const understood = await screen.findByRole('region', { name: 'What the lead wants' });
+      expect(within(understood).getByText('Timeline')).toBeInTheDocument();
+      expect(within(understood).getByText('Ready to buy this week (16-22 Nov 2026) · urgent')).toBeInTheDocument();
+    });
+
+    it('says when the window already passed', async () => {
+      renderPanel(fakeClient({ startRun: vi.fn().mockResolvedValue(withTimeline({ ...thisWeek, stale: true })) }));
+      await analyse();
+      const understood = await screen.findByRole('region', { name: 'What the lead wants' });
+      expect(within(understood).getByText('Ready to buy this week (16-22 Nov 2026) · urgent · window already passed')).toBeInTheDocument();
+    });
+
+    it('uses the label when there is no quote', async () => {
+      const noQuote: AssistantTimeline = { ...thisWeek, kind: 'no_rush', quote: null, windowStart: null, windowEnd: null, window: null, label: 'no rush', urgent: false };
+      renderPanel(fakeClient({ startRun: vi.fn().mockResolvedValue(withTimeline(noQuote)) }));
+      await analyse();
+      const understood = await screen.findByRole('region', { name: 'What the lead wants' });
+      expect(within(understood).getByText('No rush')).toBeInTheDocument();
+    });
+
+    it('shows no timeline row when the lead gave none', async () => {
+      renderPanel(fakeClient({ startRun: vi.fn().mockResolvedValue(withTimeline(null)) }));
+      await analyse();
+      const understood = await screen.findByRole('region', { name: 'What the lead wants' });
+      expect(within(understood).queryByText('Timeline')).not.toBeInTheDocument();
+    });
   });
 
   it('shows a loading state while the run is in progress', async () => {

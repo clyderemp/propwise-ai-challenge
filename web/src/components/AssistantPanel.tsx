@@ -5,6 +5,7 @@ import {
   api,
   ApiError,
   type AssistantRequirements,
+  type AssistantTimeline,
   type AssistantRun,
   type LeadDetail,
   type ListingFlag,
@@ -389,6 +390,7 @@ function RequirementsList({ requirements: r }: { requirements: AssistantRequirem
     ['Type', r.propertyType ? capitalise(r.propertyType) : 'Not stated'],
     ['Buy or rent', r.intent === 'unknown' ? 'Not stated' : capitalise(r.intent)],
     ['Also wants', r.preferences.length ? r.preferences.join(', ') : 'Nothing else'],
+    ...(r.timeline ? [['Timeline', timelineLabel(r.timeline)] as [string, string]] : []),
   ];
   return (
     <dl className="mt-1 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5">
@@ -489,6 +491,12 @@ function bedroomsLabel(r: AssistantRequirements): string {
   if (range?.min != null) return `${one(range.min)} or more`;
   if (range?.max != null) return `Up to ${one(range.max)}`;
   return 'Not stated';
+}
+
+/** "Ready to buy this week (16-22 Nov 2026) · urgent", plus "window already passed" when stale. */
+function timelineLabel(t: AssistantTimeline): string {
+  const phrase = t.quote ? `${t.quote}${t.window ? ` (${t.window})` : ''}` : capitalise(t.label);
+  return [phrase, t.urgent ? 'urgent' : null, t.stale ? 'window already passed' : null].filter(Boolean).join(' · ');
 }
 
 function budgetLabel(r: AssistantRequirements): string {
