@@ -1,6 +1,7 @@
-import { Injectable } from '@nestjs/common';
-
-/** Nest injection token for the FaultInjector (evals arm it in-process; there is no HTTP surface). */
+/**
+ * Nest injection token for the FaultInjector (evals arm it in-process; there is no HTTP surface).
+ * Register with `{ provide: ASSISTANT_FAULT_INJECTOR, useValue: new FaultInjector() }`.
+ */
 export const ASSISTANT_FAULT_INJECTOR = 'ASSISTANT_FAULT_INJECTOR' as const;
 
 export class InjectedFaultError extends Error {
@@ -19,7 +20,6 @@ type Env = Readonly<Record<string, string | undefined>>;
  * API process started by an eval runner, with ASSISTANT_FAULT_TOOLS=search_listings,... read on
  * every check.
  */
-@Injectable()
 export class FaultInjector {
   readonly enabled: boolean;
   private readonly armed = new Set<string>();
