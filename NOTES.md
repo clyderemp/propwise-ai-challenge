@@ -128,3 +128,11 @@ Both are done.
 - The injection eval checks the outcome (MBR-1019 is never pushed), not the model's reasoning.
 - Cost accounting: the report's per-case cost counts the shared Karim run in every case that reuses it. That is cases 01, 02, 10, 13 and 14; `model-comparison.md` lists only four of them, so its "report sum" figures count that run once more than it says. Its "unique runs" figures are unaffected.
 - The eval suite and the live smoke write runs and tasks to the database. Run `pnpm db:reset` before handing the API to the test cases.
+
+## Final changes after UAT (2026-11-16)
+
+- **Default model is Claude Opus 5.5** (`ASSISTANT_MODEL`, Sonnet 5.5 still selectable). The eval comparison scored them equal (30/30 each), but hands-on UAT showed Opus reading context better. Live run of all 11 seed leads on Opus under `TZ=UTC`: every run completed in 9-17 s at $0.03-0.08 each.
+- **Phase A reads the whole conversation and the lead profile** (CRM status and the agent's notes, as untrusted data) to fill gaps the analysed message leaves; the latest message still wins on conflicts. Sophie Laurent now comes out as intent buy, Downtown Dubai, MBR-1015 (the Burj Vista unit under negotiation), follow-up Thursday 19 Nov 10:00 +04:00.
+- **Expo SDK 58**: current Expo Go is SDK 58, so the mobile app was upgraded (expo ~58.0.25, RN 0.88.1). The README still says SDK 57.
+- Merged since the stretch work: prompt caching (repeat run 97% cache hit, $0.0130 vs $0.0327 on Sonnet), agent self-verification of recommendation reasons with one revision turn, and observability (structured JSON telemetry, AI SDK OpenTelemetry hooks, `GET /assistant/metrics` scoped to the caller's agency).
+- Not finished in time: a single shared price table (telemetry keeps its own copy), restart-failure labelling in the metrics endpoint, injection warnings shown in the UIs, overdue flags on past due dates, and a re-run of the eval suite and model comparison on Opus with the merged features.
