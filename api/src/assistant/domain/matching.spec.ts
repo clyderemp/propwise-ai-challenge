@@ -203,6 +203,19 @@ describe('validateRecommendations: other leads', () => {
     expect(r.dropped).toEqual([expect.objectContaining({ reference: 'MBR-1010', reason: 'not_requested' })]);
     expect(run(cands('MBR-1005'), req({ listingReferences: ['MBR-1005'] })).dropped[0].reason).toBe('not_available');
   });
+
+  it('a named listing code still has to fit the criteria stated in the same message', () => {
+    // "Is MBR-1009 available? I need a 2-bed under AED 1M": MBR-1009 is a 1BR at AED 1.45M.
+    const ask = req({ listingReferences: ['MBR-1009'], bedroomsMin: 2, bedroomsMax: 2, budgetMaxAed: 1_000_000, intent: 'buy' });
+    const r = run(cands('MBR-1009'), ask);
+    expect(r.kept).toEqual([]);
+    expect(r.dropped).toEqual([expect.objectContaining({ reference: 'MBR-1009', reason: 'bedrooms_mismatch' })]);
+  });
+
+  it('a named listing code that fits the stated criteria is kept', () => {
+    const ask = req({ listingReferences: ['MBR-1009'], bedroomsMin: 1, bedroomsMax: 1, budgetMaxAed: 1_500_000, intent: 'buy' });
+    expect(refsOf(run(cands('MBR-1009'), ask).kept)).toEqual(['MBR-1009']);
+  });
 });
 
 describe('validateRecommendations: integrity', () => {

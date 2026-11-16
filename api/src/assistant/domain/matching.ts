@@ -62,10 +62,12 @@ export function budgetBand(r: ExtractedRequirements): BudgetBand | null {
 /** Why a listing does not fit the requirements, or null when it fits. Ignores status and agency. */
 export function fitFailure(l: ListingRecord, r: ExtractedRequirements, band: BudgetBand | null = budgetBand(r)): DropReason | null {
   const named = r.listingReferences.map((x) => x.trim().toUpperCase());
-  if (named.includes(l.reference.toUpperCase())) {
+  const otherCriteria = hasSearchCriteria({ ...r, listingReferences: [] });
+  // A named code only finds the listing; when the same message states criteria, the listing must still fit them.
+  if (named.includes(l.reference.toUpperCase()) && !otherCriteria) {
     return isPriceSuspect(l) ? 'price_suspect' : null;
   }
-  if (named.length > 0 && !hasSearchCriteria({ ...r, listingReferences: [] })) return 'not_requested';
+  if (named.length > 0 && !otherCriteria) return 'not_requested';
 
   if (r.locations.length > 0) {
     const area = l.area.trim().toLowerCase();
