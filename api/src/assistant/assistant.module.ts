@@ -1,5 +1,6 @@
 import { Module, Type } from '@nestjs/common';
 import { ModuleRef } from '@nestjs/core';
+import { ClaudeAssistantAgent } from './agent/claude-assistant.agent';
 import { PropertiesModule } from '../properties/properties.module';
 import { TasksModule } from '../tasks/tasks.module';
 import { AssistantController } from './assistant.controller';
@@ -8,14 +9,18 @@ import { AssistantService } from './assistant.service';
 import { AgentPort, ASSISTANT_AGENT } from './assistant.types';
 
 /**
- * Which AgentPort to use, read at startup: ASSISTANT_AGENT_IMPL=fake selects the scripted agent (e2e tests,
- * no API key, no spend). The default will be the Claude agent once api/src/assistant/agent exports it.
+ * Which AgentPort to use, read at startup. Default: the Claude agent. ASSISTANT_AGENT_IMPL=fake selects the
+ * scripted agent (e2e tests: no API key, no spend). Anything else is a configuration error.
  */
 export function assistantAgentClass(impl = process.env.ASSISTANT_AGENT_IMPL): Type<AgentPort> {
-  switch (impl) {
+  switch (impl ?? '') {
+    case '':
+    case 'claude':
+      return ClaudeAssistantAgent;
     case 'fake':
-    default:
       return FakeAssistantAgent;
+    default:
+      throw new Error(`Unknown ASSISTANT_AGENT_IMPL "${impl}". Use "claude" (default) or "fake".`);
   }
 }
 
