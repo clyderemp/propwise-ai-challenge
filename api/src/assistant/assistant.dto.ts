@@ -21,6 +21,16 @@ export class ListAssistantRunsQuery {
   limit?: number;
 }
 
+export class AssistantMetricsQuery {
+  /** Window in hours, counted back from now over run creation time. Default 168 (7 days), max 90 days. */
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(2160)
+  sinceHours?: number;
+}
+
 /** The contract's ProposedAction, plus `taskId` (extra) once approved. */
 export function toProposedActionDto(action: ProposedActionEntity): ProposedAction & { taskId: string | null } {
   return {
