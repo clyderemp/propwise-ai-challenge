@@ -78,8 +78,17 @@ function cachedSystem(text: string): SystemModelMessage {
   return { role: 'system', content: text, providerOptions: { anthropic: { cacheControl: EPHEMERAL } } };
 }
 
+/**
+ * AI SDK OpenTelemetry spans for one phase. A no-op unless the host process registers an OTel tracer
+ * provider (see NOTES.md, "Observability"). recordInputs/recordOutputs are off: prompts hold lead PII.
+ */
+function telemetryFor(functionId: string, runId: string, model: string) {
+  return { isEnabled: true, functionId, recordInputs: false, recordOutputs: false, metadata: { runId, model } };
+}
+
 export interface ClaudeAgentOutcome extends AgentOutcome {
   usage: AgentUsage;
+  steps: number;
   timings: { extractionMs: number; analysisMs: number; totalMs: number };
 }
 
@@ -211,6 +220,7 @@ export async function runAssistantAgent(ctx: AgentRunContext, deps: RunAgentDeps
   const state = new RunState(limits, recorder, usage, ctx.signal);
   const common = { maxRetries: limits.maxRetries, abortSignal: state.signal, timeout: { stepMs: limits.stepTimeoutMs } };
 
+  let steps = 0;
   const model: LanguageModel = await state.phase(async () => deps.gateway.languageModel());
 
   // Phase A: extraction. No tools, no listing text.
@@ -226,8 +236,10 @@ export async function runAssistantAgent(ctx: AgentRunContext, deps: RunAgentDeps
       output: Output.object({ schema: extractionSchema }),
       maxOutputTokens: EXTRACTION_MAX_TOKENS,
       providerOptions: { anthropic: { effort: EXTRACTION_EFFORT } },
+      experimental_telemetry: telemetryFor('assistant.phaseA', ctx.runId, deps.gateway.modelId),
     });
     addUsage(usage, result.totalUsage);
+    steps += result.steps.length;
     if (result.finishReason === 'content-filter') throw state.fail('model', 'The model declined to analyse this message.');
     return normalizeExtraction(result.output, agencyAreas);
   });
@@ -261,7 +273,9 @@ export async function runAssistantAgent(ctx: AgentRunContext, deps: RunAgentDeps
       output: Output.object({ schema: analysisSchema }),
       maxOutputTokens: ANALYSIS_MAX_TOKENS,
       providerOptions: { anthropic: { effort: ANALYSIS_EFFORT, cacheControl: EPHEMERAL } },
+      experimental_telemetry: telemetryFor('assistant.phaseB', ctx.runId, deps.gateway.modelId),
     });
+    steps += result.steps.length;
     addUsage(usage, result.totalUsage);
     if (recorder.failure) throw state.toRunError(null);
     if (result.finishReason === 'content-filter') throw state.fail('model', 'The model declined to analyse this message.');
@@ -297,6 +311,7 @@ export async function runAssistantAgent(ctx: AgentRunContext, deps: RunAgentDeps
     trace: [...recorder.trace],
     searchSkipped,
     usage,
+    steps,
     timings: { extractionMs: Math.round(extractionMs), analysisMs: Math.round(analysisMs), totalMs: Math.round(performance.now() - state.started) },
   };
 }

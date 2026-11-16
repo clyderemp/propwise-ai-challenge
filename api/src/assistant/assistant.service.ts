@@ -35,8 +35,12 @@ import {
   DropReason,
   DroppedRecommendation,
   FollowUpTaskDraft,
+  RunFailureKind,
+  RunTimings,
   TraceEntry,
 } from './assistant.types';
+import { AssistantTelemetry, RunContextIds } from './observability/assistant-telemetry';
+import { AssistantMetrics, computeAssistantMetrics } from './observability/metrics';
 import { resolveDueAt } from './domain/follow-up-date';
 import { computeListingFlags, ListingRecord, toListingRecord } from './domain/listing-facts';
 import { reconcileSummary, validateRecommendations } from './domain/matching';
@@ -107,6 +111,7 @@ export class AssistantService implements OnApplicationBootstrap, BeforeApplicati
   constructor(
     private readonly em: EntityManager,
     @Inject(ASSISTANT_AGENT) private readonly agent: AgentPort,
+    private readonly telemetry: AssistantTelemetry,
   ) {}
 
   /** Runs the assistant on one message. Model and tool failures give a failed run (201), never an exception. */
@@ -202,6 +207,11 @@ export class AssistantService implements OnApplicationBootstrap, BeforeApplicati
    */
   private async execute(em: EntityManager, run: AssistantRunEntity, inputs: RunInputs): Promise<ProposedActionEntity[]> {
     const { auth, agent, lead, message, thread } = inputs;
+    const ids: RunContextIds = { runId: run.id, leadId: lead.id, agencyId: auth.agencyId, model: this.agent.modelId ?? null };
+    const startedAt = new Date();
+    const started = performance.now();
+    this.telemetry.runStarted(ids);
+
     const recorded: TraceEntry[] = [];
     const timeoutMs = runTimeoutMs();
     const controller = new AbortController();
@@ -238,6 +248,7 @@ export class AssistantService implements OnApplicationBootstrap, BeforeApplicati
           trace: {
             record: (entry) => {
               recorded.push(entry);
+              this.telemetry.toolCalled(ids, entry);
               return persistTrace();
             },
           },
@@ -246,26 +257,39 @@ export class AssistantService implements OnApplicationBootstrap, BeforeApplicati
         aborted,
       ]);
       await traceWrites;
-      actions = await this.complete(em, run, outcome, recorded, auth, agent.timezone, message, lead);
+      const timings = timingsOf(startedAt, started, outcome.timings);
+      actions = await this.complete(em, run, outcome, recorded, auth, agent.timezone, message, lead, timings);
+      this.telemetry.runFinished(
+        { ...ids, model: run.model ?? ids.model },
+        { status: 'completed', failureKind: null, latencyMs: timings.latencyMs, steps: outcome.steps ?? null, toolCount: run.trace.length, usage: outcome.usage ?? null },
+      );
     } catch (caught) {
       // Once aborted, the abort reason is the cause, whatever the agent threw while unwinding.
       const error: unknown = controller.signal.aborted ? controller.signal.reason : caught;
       this.logger.warn(`Assistant run ${run.id} failed: ${error instanceof Error ? error.message : String(error)}`);
       await traceWrites;
-      const agentTrace = error instanceof AgentRunError ? error.trace : caught instanceof AgentRunError ? caught.trace : [];
+      const runError = error instanceof AgentRunError ? error : caught instanceof AgentRunError ? caught : null;
       run.status = 'failed';
       run.error = describeFailure(error, timeoutMs);
       run.requirements = emptyRequirements();
       run.recommendations = [];
-      run.trace = longest(agentTrace, recorded);
+      run.trace = longest(runError?.trace ?? [], recorded);
       run.model = this.agent.modelId ?? null;
-      const usage = error instanceof AgentRunError ? error.usage : caught instanceof AgentRunError ? caught.usage : undefined;
-      if (usage) {
-        run.diagnostics = { droppedRecommendations: [], budgetBand: null, searchSkipped: false, usage: priceUsage(run.model, usage) };
-      }
-      run.finishedAt = new Date();
+      const failureKind: RunFailureKind = error instanceof RunInterruptedError ? 'interrupted' : (runError?.kind ?? 'internal');
+      const usage = runError?.usage ?? null;
+      const timings = timingsOf(startedAt, started);
+      run.diagnostics = {
+        droppedRecommendations: [],
+        budgetBand: null,
+        searchSkipped: false,
+        usage: usage ? priceUsage(run.model, usage) : null,
+        failureKind,
+        timings,
+      };
+      run.finishedAt = new Date(timings.finishedAt);
       actions = [];
       await em.flush();
+      this.telemetry.runFinished(ids, { status: 'failed', failureKind, latencyMs: timings.latencyMs, steps: null, toolCount: run.trace.length, usage });
     } finally {
       clearTimeout(timer);
       this.inFlight.delete(run.id);
@@ -405,6 +429,30 @@ export class AssistantService implements OnApplicationBootstrap, BeforeApplicati
     return { action: toProposedActionDto(current) };
   }
 
+  /**
+   * Aggregate health of the agency's runs created in the last `sinceHours` hours. Scoped by agency in the
+   * query itself, so no other agency's run is ever loaded.
+   */
+  async metrics(agencyId: string, sinceHours: number): Promise<AssistantMetrics & { window: { sinceHours: number; from: string; to: string } }> {
+    const to = new Date();
+    const from = new Date(to.getTime() - sinceHours * 3_600_000);
+    const runs = await this.em.fork().find(
+      AssistantRunEntity,
+      { agency: agencyId, createdAt: { $gte: from } },
+      { fields: ['status', 'model', 'createdAt', 'finishedAt', 'error', 'diagnostics', 'trace'] },
+    );
+    const rows = runs.map((r) => ({
+      status: r.status,
+      model: r.model ?? null,
+      createdAt: r.createdAt,
+      finishedAt: r.finishedAt ?? null,
+      error: r.error ?? null,
+      diagnostics: r.diagnostics ?? null,
+      trace: r.trace ?? [],
+    }));
+    return { window: { sinceHours, from: from.toISOString(), to: to.toISOString() }, ...computeAssistantMetrics(rows) };
+  }
+
   // ---------------------------------------------------------------------------------------------
 
   /** Validates the agent's picks against the database and stores the completed run with its action. */
@@ -417,6 +465,7 @@ export class AssistantService implements OnApplicationBootstrap, BeforeApplicati
     timeZone: string,
     message: Message,
     lead: Lead,
+    timings: RunTimings,
   ): Promise<ProposedActionEntity[]> {
     // Re-read every listing from the database, scoped to the agency: nothing the model says about a
     // listing is trusted, and ids of other agencies are simply not found.
@@ -468,9 +517,11 @@ export class AssistantService implements OnApplicationBootstrap, BeforeApplicati
       budgetBand: validation.budgetBand,
       searchSkipped: outcome.searchSkipped,
       usage: outcome.usage ? priceUsage(outcome.model, outcome.usage) : null,
+      failureKind: null,
+      timings,
     };
     run.dataWarnings = dataWarnings;
-    run.finishedAt = new Date();
+    run.finishedAt = new Date(timings.finishedAt);
 
     const actions: ProposedActionEntity[] = [];
     if (draft) {
@@ -555,6 +606,18 @@ export function withDroppedNote(summary: string, dropped: readonly DroppedRecomm
   const items = dropped.map((d) => `${d.reference ?? 'an unknown listing'} (${DROP_LABELS[d.reason]})`);
   const note = `Server checks removed ${dropped.length} suggested listing${dropped.length === 1 ? '' : 's'}: ${items.join(', ')}.`;
   return [summary.trim(), note].filter(Boolean).join(' ');
+}
+
+/** Wall-clock timings of a run; phase timings come from the agent when it reports them. */
+function timingsOf(startedAt: Date, started: number, phases?: { extractionMs: number; analysisMs: number }): RunTimings {
+  const latencyMs = Math.max(0, Math.round(performance.now() - started));
+  return {
+    startedAt: startedAt.toISOString(),
+    finishedAt: new Date(startedAt.getTime() + latencyMs).toISOString(),
+    latencyMs,
+    phaseAMs: phases?.extractionMs ?? null,
+    phaseBMs: phases?.analysisMs ?? null,
+  };
 }
 
 /** The fuller of two traces of the same run (the agent's own list, or what the sink received). */

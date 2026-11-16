@@ -151,14 +151,31 @@ export interface RunDiagnostics {
   searchSkipped: boolean;
   /** Model tokens the run used (both phases), with cache use and estimated cost. Absent on runs stored before this was recorded. */
   usage?: PricedUsage | null;
+  /** Why a failed run failed. Absent on completed runs and on runs stored before this was recorded. */
+  failureKind?: RunFailureKind | null;
+  /** Wall-clock timings of the run. Absent on runs stored before this was recorded. */
+  timings?: RunTimings | null;
+}
+
+export interface RunTimings {
+  startedAt: string;
+  finishedAt: string;
+  /** Whole run as the service saw it (both phases, validation and the database write excluded). */
+  latencyMs: number;
+  /** Phase A (extraction) and Phase B (tool loop), when the agent reports them. */
+  phaseAMs: number | null;
+  phaseBMs: number | null;
 }
 
 /** What an agent reports. inputTokens is the whole prompt: uncached + cache read + cache write. */
 export interface TokenUsage {
+  /** All input tokens, cache reads and writes included. */
   inputTokens: number;
   outputTokens: number;
   totalTokens: number;
+  /** Input tokens read from the prompt cache, when the provider reports them. */
   cacheReadTokens?: number;
+  /** Input tokens written to the prompt cache, when the provider reports them. */
   cacheWriteTokens?: number;
 }
 
@@ -306,6 +323,10 @@ export interface AgentOutcome {
   searchSkipped: boolean;
   /** Model tokens used, when the agent reports them. */
   usage?: TokenUsage;
+  /** Model requests made (both phases), when the agent reports them. */
+  steps?: number;
+  /** Phase timings, when the agent reports them. */
+  timings?: { extractionMs: number; analysisMs: number; totalMs: number };
 }
 
 export interface AgentPort {
@@ -316,6 +337,11 @@ export interface AgentPort {
 }
 
 export type AgentFailureKind = 'model' | 'tool' | 'timeout' | 'invalid_output';
+/**
+ * A stored run's failure kind: an agent failure, 'interrupted' for a run cut off by a shutdown or restart
+ * (error RESTART_ERROR), or 'internal' for anything else the service caught.
+ */
+export type RunFailureKind = AgentFailureKind | 'interrupted' | 'internal';
 
 /** Thrown by the agent when a run must end as failed. Carries the trace recorded so far. */
 export class AgentRunError extends Error {
