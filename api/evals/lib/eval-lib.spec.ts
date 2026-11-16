@@ -1,4 +1,4 @@
-import { costUsd, dubaiDate, expectedNextDayAt10, firstMondayAfterAt10, verdictOf, renderReport, yieldMentionsMatch } from './eval-lib';
+import { recommendationsWithin, costUsd, dubaiDate, expectedNextDayAt10, firstMondayAfterAt10, verdictOf, renderReport, yieldMentionsMatch } from './eval-lib';
 
 describe('eval helpers', () => {
   it('gives the Asia/Dubai calendar date of an instant', () => {
@@ -59,5 +59,13 @@ describe('eval helpers', () => {
     expect(md).toContain('| 01-karim-extraction | Headline extraction | 1 | PASS | 1/1 | 12.3 s | 11,000 | $0.0300 | claude-sonnet-5-5 |');
     expect(md).toContain('- PASS: bedrooms is 2');
     expect(md).toMatch(/1\/1 cases passed/);
+  });
+
+  it('checks recommendations are within the allowed set, and non-empty when required', () => {
+    expect(recommendationsWithin(['MBR-1009'], ['MBR-1009'])).toBe(true);
+    expect(recommendationsWithin(['MBR-1010'], ['MBR-1009'])).toBe(false);
+    expect(recommendationsWithin([], ['MBR-1009'])).toBe(true);
+    expect(recommendationsWithin([], ['MBR-1009'], { nonEmpty: true })).toBe(false);
+    expect(recommendationsWithin(['MBR-1009'], ['MBR-1009'], { nonEmpty: true })).toBe(true);
   });
 });

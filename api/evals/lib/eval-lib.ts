@@ -168,3 +168,9 @@ export function renderReport(report: Report): string {
   }
   return lines.join('\n');
 }
+
+/** Every recommended reference is allowed; with nonEmpty, at least one listing must be recommended. */
+export function recommendationsWithin(refs: readonly string[], allowed: readonly string[], opts: { nonEmpty?: boolean } = {}): boolean {
+  if (opts.nonEmpty && refs.length === 0) return false;
+  return refs.every((r) => allowed.includes(r));
+}
