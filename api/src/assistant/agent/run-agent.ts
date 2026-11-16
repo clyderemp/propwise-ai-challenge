@@ -16,7 +16,7 @@ import { FaultInjector } from './fault-injector';
 import { LlmGateway, NOT_CONFIGURED_MESSAGE } from './llm.gateway';
 import { ANALYSIS_SYSTEM, analysisPrompt, EXTRACTION_SYSTEM, extractionPrompt } from './prompts';
 import { analysisSchema, extractionSchema, ExtractionOutput, MAX_REASON, MAX_SUMMARY, MAX_TASK_NOTES, MAX_TASK_TITLE } from './schemas';
-import { AgentDataAccess, createAgentTools, ToolFailure, ToolRecorder } from './tools';
+import { AgentDataAccess, createAgentTools, TOOL_NAMES, ToolFailure, ToolRecorder } from './tools';
 
 /**
  * The two-phase agent (plan 2.2, 2.6, section 7), independent of Nest so it can be tested with a
@@ -247,6 +247,11 @@ export async function runAssistantAgent(ctx: AgentRunContext, deps: RunAgentDeps
     if (result.finishReason === 'content-filter') throw state.fail('model', 'The model declined to analyse this message.');
     if (result.finishReason === 'tool-calls') throw state.fail('invalid_output', `The assistant did not finish within ${limits.maxSteps} steps.`);
     if (result.finishReason === 'length') throw state.fail('invalid_output', 'The model ran out of output tokens before answering.');
+    // "Nothing fits" must come from a search. A rent enquiry is exempt: every listing is for sale, so code drops them all anyway.
+    const searched = recorder.trace.some((e) => e.tool === TOOL_NAMES.searchListings && e.error === undefined);
+    if (!searchSkipped && extraction.requirements.intent !== 'rent' && !searched) {
+      throw state.fail('invalid_output', 'The assistant answered without searching the listings, so it cannot say what fits.');
+    }
     return result.output;
   });
   const analysisMs = performance.now() - analysisStarted;

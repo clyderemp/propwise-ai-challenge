@@ -199,6 +199,39 @@ describe('runAssistantAgent', () => {
     expect(t.data.calls.some((c) => c.method === 'searchListings')).toBe(false);
   });
 
+  it('fails instead of reporting "nothing fits" when the model answers without searching the listings', async () => {
+    const t = setup([
+      { json: karimExtraction() },
+      { toolCalls: [{ name: 'get_lead_tasks', input: {} }] },
+      { json: { recommendations: [], summary: 'Nothing in Dubai Marina fits.', followUpTask: null } },
+    ]);
+    const error = await runError(t.run());
+    expect(error.kind).toBe('invalid_output');
+    expect(error.message).toBe('The assistant answered without searching the listings, so it cannot say what fits.');
+    expect(error.trace.map((e) => e.tool)).toEqual(['get_lead_tasks']);
+  });
+
+  it('accepts an empty shortlist when a search did run', async () => {
+    const t = setup([
+      { json: karimExtraction({ budgetMaxAed: 100_000, budgetIsApproximate: false }) },
+      { toolCalls: [{ name: 'search_listings', input: { ...KARIM_SEARCH, minPriceAed: null, maxPriceAed: 100_000 } }] },
+      { json: { recommendations: [], summary: 'Nothing fits under AED 100,000.', followUpTask: null } },
+    ]);
+    const outcome = await t.run();
+    expect(outcome.candidates).toEqual([]);
+    expect(outcome.trace.map((e) => e.tool)).toEqual(['search_listings']);
+  });
+
+  it('does not require a search for a rent enquiry: every listing is for sale', async () => {
+    const t = setup([
+      { json: karimExtraction({ intent: 'rent', budgetMaxAed: 120_000, budgetIsApproximate: false }) },
+      { json: { recommendations: [], summary: 'The lead wants to rent; these listings are for sale.', followUpTask: null } },
+    ]);
+    const outcome = await t.run();
+    expect(outcome.candidates).toEqual([]);
+    expect(outcome.trace).toEqual([]);
+  });
+
   it('fails the run immediately when a tool throws, without handing the error back to the model', async () => {
     const t = setup([
       { json: karimExtraction() },
@@ -288,12 +321,13 @@ describe('runAssistantAgent', () => {
   });
 
   it('drafts a templated follow-up when the lead asked for one and the model returned none, and clamps long text', async () => {
-    const t = setup([{ json: karimExtraction() }, { json: { recommendations: [], summary: 's'.repeat(5000), followUpTask: null } }]);
+    const search = { toolCalls: [{ name: 'search_listings', input: KARIM_SEARCH }] };
+    const t = setup([{ json: karimExtraction() }, search, { json: { recommendations: [], summary: 's'.repeat(5000), followUpTask: null } }]);
     const outcome = await t.run();
     expect(outcome.followUp).toEqual({ title: 'Follow up with Karim', notes: null, intent: expect.objectContaining({ kind: 'relative_days' }) });
     expect(outcome.summary.length).toBeLessThanOrEqual(2000);
 
-    const t2 = setup([{ json: karimExtraction() }, { json: { recommendations: [], summary: 'ok', followUpTask: { title: 'T'.repeat(500), notes: 'N'.repeat(9000) } } }]);
+    const t2 = setup([{ json: karimExtraction() }, search, { json: { recommendations: [], summary: 'ok', followUpTask: { title: 'T'.repeat(500), notes: 'N'.repeat(9000) } } }]);
     const o2 = await t2.run();
     expect(o2.followUp?.title).toHaveLength(200);
     expect(o2.followUp?.notes).toHaveLength(5000);
