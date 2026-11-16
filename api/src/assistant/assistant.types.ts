@@ -34,6 +34,10 @@ export type Weekday = (typeof WEEKDAYS)[number];
 export const FOLLOW_UP_KINDS = ['relative_days', 'weekday', 'after_weekend', 'absolute_date', 'none', 'unclear'] as const;
 export type FollowUpKind = (typeof FOLLOW_UP_KINDS)[number];
 
+/** How soon the lead means to buy or move (Phase A), separate from when to contact them. */
+export const TIMELINE_KINDS = ['asap', 'this_week', 'next_week', 'this_month', 'next_month', 'within_days', 'by_date', 'no_rush', 'none'] as const;
+export type TimelineKind = (typeof TIMELINE_KINDS)[number];
+
 export const LISTING_FLAGS = ['rent_missing', 'price_suspect', 'possible_duplicate', 'instruction_like_text'] as const;
 export type ListingFlag = (typeof LISTING_FLAGS)[number];
 
@@ -79,7 +83,28 @@ export interface RequirementsExtras {
   prioritiseYield: boolean;
 }
 
-export type AssistantRequirements = Requirements & Partial<RequirementsExtras>;
+/**
+ * The lead's purchase or move timeline, resolved in code from the Phase A classification (extra).
+ * Dates are local calendar dates (YYYY-MM-DD) in the agent's time zone.
+ */
+export interface ResolvedTimeline {
+  kind: Exclude<TimelineKind, 'none'>;
+  /** The lead's words, e.g. "Ready to buy this week". */
+  quote: string | null;
+  /** First and last local day of the window; null when the kind has no window (asap has no end, no_rush neither). */
+  windowStart: string | null;
+  windowEnd: string | null;
+  /** The window alone, e.g. "16-22 Nov 2026"; null without one. */
+  window: string | null;
+  /** E.g. "this week (16-22 Nov 2026)". */
+  label: string;
+  /** True when the lead means to act within about a month, so the agent should follow up promptly. */
+  urgent: boolean;
+  /** True when the window had already ended (agent's local date) when the run analysed the message. */
+  stale: boolean;
+}
+
+export type AssistantRequirements = Requirements & Partial<RequirementsExtras> & { timeline?: ResolvedTimeline | null };
 
 export interface FollowUpTaskDraft {
   title: string;
@@ -259,6 +284,19 @@ export interface FollowUpIntent {
   quote: string | null;
   /** unclear: why. */
   unclearReason: string | null;
+}
+
+/** Phase A's reading of the lead's purchase or move timeline. The model never computes a date. */
+export interface TimelineIntent {
+  kind: TimelineKind;
+  /** within_days: the number of days ("within 2 weeks" = 14). */
+  days: number | null;
+  /** by_date: 1-12, 1-31, and the year when stated (null = first occurrence on or after the sent date). */
+  month: number | null;
+  day: number | null;
+  year: number | null;
+  /** The words this was read from. */
+  quote: string | null;
 }
 
 export interface ExtractedRequirements {

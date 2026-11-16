@@ -1,5 +1,5 @@
-import { FollowUpIntent } from '../assistant.types';
-import { NO_FOLLOW_UP_TIMING, resolveDueAt } from './follow-up-date';
+import { FollowUpIntent, ResolvedTimeline } from '../assistant.types';
+import { NO_FOLLOW_UP_TIMING, resolveDueAt, resolveFollowUpDue } from './follow-up-date';
 
 const DUBAI = 'Asia/Dubai';
 
@@ -240,6 +240,91 @@ describe('resolveDueAt', () => {
       } finally {
         spy.mockRestore();
       }
+    });
+  });
+});
+
+// Calendar (Asia/Dubai): 2026-11-16 Mon, 19 Thu, 20 Fri, 21 Sat, 22 Sun, 23 Mon; 2026-11-07 Sat, 09 Mon.
+function resolved(over: Partial<ResolvedTimeline>): ResolvedTimeline {
+  return {
+    kind: 'this_week',
+    quote: 'Ready to buy this week',
+    windowStart: '2026-11-16',
+    windowEnd: '2026-11-22',
+    window: '16-22 Nov 2026',
+    label: 'this week (16-22 Nov 2026)',
+    urgent: true,
+    stale: false,
+    ...over,
+  };
+}
+
+describe('resolveFollowUpDue (contact timing first, then the lead timeline)', () => {
+  const none = intent({ kind: 'none' });
+  const urgent = resolved({});
+
+  describe('no contact timing and an urgent timeline: the next working day after sentAt, 10:00', () => {
+    it.each([
+      ['Mon 16 Nov -> Tue 17 Nov', '2026-11-16T06:00:00Z', '2026-11-17T10:00:00+04:00'],
+      ['Thu 19 Nov -> Fri 20 Nov', '2026-11-19T06:00:00Z', '2026-11-20T10:00:00+04:00'],
+      ['Fri 20 Nov -> Mon 23 Nov (skips the weekend)', '2026-11-20T06:00:00Z', '2026-11-23T10:00:00+04:00'],
+      ['Sat 21 Nov -> Mon 23 Nov', '2026-11-21T06:00:00Z', '2026-11-23T10:00:00+04:00'],
+      ['Sun 22 Nov -> Mon 23 Nov', '2026-11-22T06:00:00Z', '2026-11-23T10:00:00+04:00'],
+      ['21:30Z Thu 19 Nov is Fri 20 Nov in Dubai -> Mon 23 Nov', '2026-11-19T21:30:00Z', '2026-11-23T10:00:00+04:00'],
+    ])('%s', (_name, sentAt, expected) => {
+      expect(resolveFollowUpDue(none, urgent, at(sentAt), DUBAI)).toEqual({ dueAt: expected, needsClarification: null, fromTimeline: true });
+    });
+
+    it('stays anchored on sentAt when the window is stale', () => {
+      expect(resolveFollowUpDue(none, resolved({ stale: true }), at('2026-11-07T08:00:00Z'), DUBAI).dueAt).toBe('2026-11-09T10:00:00+04:00');
+    });
+
+    it('uses the agent zone offset (Los Angeles)', () => {
+      // 2026-11-16T20:00Z is Mon 16 Nov 12:00 in Los Angeles (PST, -08:00).
+      expect(resolveFollowUpDue(none, urgent, at('2026-11-16T20:00:00Z'), 'America/Los_Angeles').dueAt).toBe('2026-11-17T10:00:00-08:00');
+    });
+  });
+
+  describe('explicit contact timing wins', () => {
+    it('"call me Thursday" plus "buying next month" is Thursday', () => {
+      const thursday = intent({ kind: 'weekday', weekday: 'thursday', quote: 'call me Thursday' });
+      const nextMonth = resolved({ kind: 'next_month', quote: 'buying next month' });
+      expect(resolveFollowUpDue(thursday, nextMonth, at('2026-11-16T06:00:00Z'), DUBAI)).toEqual({
+        dueAt: '2026-11-19T10:00:00+04:00',
+        needsClarification: null,
+        fromTimeline: false,
+      });
+    });
+
+    it('"tomorrow" plus an urgent timeline is tomorrow, even on a Saturday', () => {
+      expect(resolveFollowUpDue(tomorrow, urgent, at('2026-11-20T06:00:00Z'), DUBAI).dueAt).toBe('2026-11-21T10:00:00+04:00');
+    });
+
+    it('genuinely vague contact timing stays unclear', () => {
+      const sometime = intent({ kind: 'unclear', quote: 'Give me a shout sometime', unclearReason: '"sometime" names no day.' });
+      expect(resolveFollowUpDue(sometime, urgent, at('2026-11-16T06:00:00Z'), DUBAI)).toEqual({
+        dueAt: null,
+        needsClarification: '"sometime" names no day.',
+        fromTimeline: false,
+      });
+    });
+
+    it('an "unclear" reading of the same words as the timeline is the timeline', () => {
+      const sameWords = intent({ kind: 'unclear', quote: 'this week', unclearReason: '"this week" does not name a day.' });
+      expect(resolveFollowUpDue(sameWords, urgent, at('2026-11-16T06:00:00Z'), DUBAI)).toEqual({
+        dueAt: '2026-11-17T10:00:00+04:00',
+        needsClarification: null,
+        fromTimeline: true,
+      });
+    });
+  });
+
+  describe('no urgent timeline: today\'s behaviour', () => {
+    it.each([
+      ['no timeline', null],
+      ['no rush', resolved({ kind: 'no_rush', windowStart: null, windowEnd: null, window: null, label: 'no rush', urgent: false })],
+    ])('%s gives no date and asks for clarification', (_name, t) => {
+      expect(resolveFollowUpDue(none, t, at('2026-11-16T06:00:00Z'), DUBAI)).toEqual({ dueAt: null, needsClarification: NO_FOLLOW_UP_TIMING, fromTimeline: false });
     });
   });
 });
