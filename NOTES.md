@@ -32,6 +32,7 @@ The AI lead assistant described in TASK.md: the API agent, the web panel, the mo
    - `domain/follow-up-date.ts` turns that into a date with `Intl`, from the message's `sentAt` in the logged-in agent's timezone. The server's own timezone plays no part, and the tests pass under both `TZ=UTC` and `TZ=America/Los_Angeles`.
    - Times default to 10:00 local. "After the weekend" means the first Monday strictly after the sent date (the UAE weekend is Saturday and Sunday).
    - Unclear timing gives `dueAt: null` plus `needsClarification`.
+   - The lead's purchase/move timeline is a separate classification (see "Lead timeline" below). With no contact timing, an urgent timeline gives the next working day after `sentAt` at 10:00.
 4. **Approval is a compare-and-set.** Approve runs `UPDATE ... WHERE status = 'pending_approval'` and the task insert in one transaction. A second approve returns the same task. Approving a rejected action, or rejecting an approved one, gives 409. A run itself writes only its own run row and action rows.
 4a. **Self-verification of reasons.** After Phase B, code checks every candidate: the recommendation validation plus `domain/claim-check.ts`, which reads AED amounts (2.05M, 2,050,000, AED 2m), yield percentages (0.15 pp tolerance against the computed gross yield), bedroom counts, area and building names, status words and other listing codes in each reason and compares them with the listing row. If anything is off, the model gets exactly one revision turn in the same conversation, with the issues as data, the same read-only tools, no retries and inside the run deadline. Any reason still wrong is replaced by a code-built factual reason, so a wrong figure is never shipped. The record is in `diagnostics.selfVerification` (`checkedRecommendations`, `issuesFound`, `revised`, `rounds`, `fallbackReasons`, and `revisionError` when the turn produced nothing usable); the trace stays tool calls only.
 5. **Failures say they failed.**
@@ -116,7 +117,7 @@ Both are done.
 ## What is missing or weak
 
 - **Single API process per database** (see above). With two processes, one's startup sweep fails the other's runs in progress.
-- Mobile starts runs synchronously, so it shows a spinner rather than live steps. It also ignores `bedroomsRange` and `budgetIsApproximate`, so "studio or 1-bed" shows as "Any" and "around 2M" as "Up to". The web panel uses both fields.
+- Mobile starts runs synchronously, so it shows a spinner rather than live steps. (It now reads `bedroomsRange` and `budgetIsApproximate` like the web panel: "Studio or 1 bed", "Around AED 2,000,000".)
 - The reason check covers numbers and listing codes only. A reason that gets a word wrong ("vacant" for a tenanted unit) still passes. When a reason fails the check, Sara sees the plain factual reason instead of the model's.
 - The summary check removes sentences that name a dropped listing by its code. A sentence that praises a dropped listing only by building name is not caught (the removal note is still appended).
 - The features read from a listing description are a short fixed list. Anything else in the description (a tenancy end date, "open to offers") is invisible to the model.
@@ -136,3 +137,30 @@ Both are done.
 - **Expo SDK 58**: current Expo Go is SDK 58, so the mobile app was upgraded (expo ~58.0.25, RN 0.88.1). The README still says SDK 57.
 - Merged since the stretch work: prompt caching (repeat run 97% cache hit, $0.0130 vs $0.0327 on Sonnet), agent self-verification of recommendation reasons with one revision turn, and observability (structured JSON telemetry, AI SDK OpenTelemetry hooks, `GET /assistant/metrics` scoped to the caller's agency).
 - Not finished in time: a single shared price table (telemetry keeps its own copy), restart-failure labelling in the metrics endpoint, injection warnings shown in the UIs, overdue flags on past due dates, and a re-run of the eval suite and model comparison on Opus with the merged features.
+
+## Lead timeline (2026-11-16, from UAT)
+
+UAT found that "Ready to buy this week" (Lina) came out as "unclear, 'this week' does not name a day" and "moving in next month" (Priya) as "no timing", both with `dueAt: null`. These phrases describe when the lead means to buy or move, not when to call, and they are the strongest urgency signal in the message.
+
+**Decision: timeline and contact timing are two separate concepts.**
+- Phase A returns `timeline: { kind, days, month, day, year, quote }` next to `followUp`. The kinds are `asap`, `this_week`, `next_week`, `this_month`, `next_month`, `within_days`, `by_date`, `no_rush` and `none`. The prompt has worked examples (Lina, Priya, "call me after the weekend", "call me Thursday, we are buying next month", "no rush, maybe next year"). The model only classifies the words; it never computes a date.
+- `domain/timeline.ts` resolves the timeline to a window of local dates in the agent's zone, anchored on `sentAt`. A week runs Monday to Sunday (UAE work week). `next_month` is the whole next calendar month. `urgent` is true for asap, this/next week, this/next month, `within_days` up to 31 and `by_date` at most 31 days after the sent date. `stale` is true when the analysis's local date is after the window end. That is the only place the analysis time is used.
+- `resolveFollowUpDue` (domain/follow-up-date.ts) applies these rules in order:
+  1. Explicit contact timing always wins ("call me Thursday" plus "buying next month" gives Thursday).
+  2. With no contact timing, an urgent timeline gives the next working day (Monday to Friday) after `sentAt` at 10:00, with `needsClarification: null`. The task notes add "Timeline: this week (16-22 Nov 2026), "Ready to buy this week". Urgent, so follow up on the next working day after the message." A follow-up is proposed even when the lead did not ask to be contacted.
+  3. Otherwise behaviour is unchanged: `dueAt: null` plus `needsClarification`. Vague contact timing ("sometime", "later") stays unclear.
+- When the model files the same words under both (an `unclear` followUp whose quote overlaps the timeline quote), they count as timeline only.
+- `dueAt` stays anchored on `sentAt` even when the window is stale (TASK.md rule). A stale window instead appends "Note: the lead's timeline, ..., had already ended when this message was analysed. Check whether it still applies." to the summary.
+- **API:** `requirements.timeline` is an extra field: the resolved object, or `null` when the lead gave no timeline. Failed runs keep the exact empty requirements shape.
+- **Web and mobile:** both show a "Timeline" row, for example "Ready to buy this week (16-22 Nov 2026) · urgent", plus "window already passed" when the window is stale.
+- **Provider limit found by the evals:** a structured-output schema may have at most 16 nullable (union-typed) parameters. The first version of the timeline took Phase A to 18, and the API rejected every run with HTTP 400. The `by_date` month, day and year are now plain integers, with 0 meaning "not given", and are normalised to null in code. A unit test counts the unions in the JSON schema.
+
+**Evals** (Opus 5.5, fresh `db:reset`, `TZ=UTC`, 20 cases): 19/20 pass.
+- Lina (04) and Priya (05) now expect an urgent timeline and a follow-up on the next working day.
+- New cases: 17 ("this week" sent on a Friday is due Monday), 18 (a "this week" message 9 days old is stale), 19 ("call me Thursday" wins over "buying next month") and 20 ("no rush, maybe next year" gives no dated follow-up).
+- The failure is case 13 (Sophie). Since commit `3ae67b1`, Phase A reads the thread and the lead profile, so Sophie gets Downtown Dubai and a search (MBR-1015). Case 13 still expects no search. This has nothing to do with the timeline (her timeline is `null`), but the eval expectation needs a ruling. The report and traces were not committed for that reason.
+
+Open points:
+- `asap` has no window end, so it is never stale.
+- "next year" alone is classified as `no_rush`.
+- A stale urgent window still proposes a date in the past (the next working day after `sentAt`). It is flagged in the summary rather than moved to the analysis date.
