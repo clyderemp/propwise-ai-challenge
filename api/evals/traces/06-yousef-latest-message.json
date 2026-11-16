@@ -35,7 +35,7 @@
       "detail": "[\"Dubai Marina\"]"
     },
     {
-      "name": "Yousef: recommendations within {MBR-1011}",
+      "name": "Yousef: at least one recommendation, all within {MBR-1011}",
       "pass": true,
       "gating": true,
       "detail": "got [MBR-1011]"
@@ -63,9 +63,9 @@
     {
       "label": "Yousef",
       "status": 201,
-      "latencyMs": 9077,
+      "latencyMs": 9508,
       "run": {
-        "id": "25af436d-ff5f-4e49-9b99-c6fbc1349a44",
+        "id": "e87da332-319a-498c-82b6-78652c89782e",
         "leadId": "651d2943-9f72-5cec-979f-58bf69380af8",
         "messageId": "66ecee80-b236-5bcc-8536-e00e18aaaca6",
         "status": "completed",
@@ -91,7 +91,7 @@
         "recommendations": [
           {
             "propertyId": "44bc22be-e2ec-590c-b32a-16b1894881f5",
-            "reason": "MBR-1011 is a 3-bedroom apartment in Marina Gate 1, Dubai Marina, asking AED 3,600,000, which is within the AED 4M budget. Gross yield is 6.11% and it is available.",
+            "reason": "MBR-1011 is a 3-bedroom apartment in Marina Gate 1, Dubai Marina, asking AED 3,600,000 with a gross yield of 6.11%. Its status is available.",
             "property": {
               "reference": "MBR-1011",
               "title": "3BR family apartment in Marina Gate 1",
@@ -108,15 +108,15 @@
             }
           }
         ],
-        "summary": "Yousef now needs a 3-bedroom apartment to buy in Dubai Marina, up to AED 4M, because his parents are moving in with the family. One available listing fits: MBR-1011 in Marina Gate 1 at AED 3.6M. It has no data flags. He asked for a call tomorrow, and there are no open tasks for him.",
+        "summary": "Yousef wants to buy a 3-bedroom apartment in Dubai Marina for up to AED 4,000,000. One available listing fits: MBR-1011 in Marina Gate 1 at AED 3,600,000 and a 6.11% gross yield. It has no data flags. The lead has no open tasks, so the next step is to contact him.",
         "proposedActions": [
           {
-            "id": "5cf99bbe-c435-48fa-8a7f-bb930dc0a9e1",
+            "id": "be48b336-f071-4565-83b1-07c73be86e1c",
             "type": "create_follow_up_task",
             "status": "pending_approval",
             "task": {
-              "title": "Call Yousef Darwish about Dubai Marina 3BR options",
-              "notes": "Yousef asked for a call tomorrow. His plans changed because his parents are moving in, so he now needs 3 bedrooms, with a budget up to AED 4M in Dubai Marina. Present MBR-1011 (Marina Gate 1, AED 3.6M, 6.11% gross yield, available). Ask about his flexibility on budget and building, and whether he wants to arrange a viewing.",
+              "title": "Call Yousef about Dubai Marina 3BR apartment",
+              "notes": "Present MBR-1011 (Marina Gate 1, AED 3.6M, 6.11% gross yield, available). Confirm his budget and preferences, and arrange a viewing. Ask whether he would consider other areas, since only one Dubai Marina listing matches.",
               "dueAt": "2026-11-17T10:00:00+04:00"
             },
             "needsClarification": null,
@@ -124,6 +124,15 @@
           }
         ],
         "trace": [
+          {
+            "tool": "get_lead_tasks",
+            "input": {},
+            "output": {
+              "total": 0,
+              "items": []
+            },
+            "durationMs": 16
+          },
           {
             "tool": "search_listings",
             "input": {
@@ -157,19 +166,10 @@
                 }
               ]
             },
-            "durationMs": 14
-          },
-          {
-            "tool": "get_lead_tasks",
-            "input": {},
-            "output": {
-              "total": 0,
-              "items": []
-            },
-            "durationMs": 13
+            "durationMs": 22
           }
         ],
-        "createdAt": "2026-11-16T10:32:47.576Z",
+        "createdAt": "2026-11-16T10:52:11.309Z",
         "model": "claude-sonnet-5-5",
         "diagnostics": {
           "droppedRecommendations": [],
@@ -180,9 +180,9 @@
           },
           "searchSkipped": false,
           "usage": {
-            "inputTokens": 10367,
-            "outputTokens": 888,
-            "totalTokens": 11255
+            "inputTokens": 10273,
+            "outputTokens": 833,
+            "totalTokens": 11106
           }
         },
         "dataWarnings": []

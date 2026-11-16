@@ -41,7 +41,7 @@
       "detail": "{\"min\":null,\"max\":2000000}"
     },
     {
-      "name": "Fatima: recommendations within {MBR-1001, MBR-1002, MBR-1022, MBR-1024}",
+      "name": "Fatima: at least one recommendation, all within {MBR-1001, MBR-1002, MBR-1022, MBR-1024}",
       "pass": true,
       "gating": true,
       "detail": "got [MBR-1002, MBR-1001, MBR-1022]"
@@ -87,9 +87,9 @@
     {
       "label": "Fatima",
       "status": 201,
-      "latencyMs": 11055,
+      "latencyMs": 10550,
       "run": {
-        "id": "581df318-c211-44ac-85a8-64130f8bb9c0",
+        "id": "123544c3-69c0-4820-9b18-a86282dd2f0e",
         "leadId": "f7e72c18-9aeb-5f8a-a5a8-c7a3a7508ed1",
         "messageId": "95ec5924-b0f1-56c1-96da-5424b5b0a2f0",
         "status": "completed",
@@ -172,15 +172,15 @@
             }
           }
         ],
-        "summary": "Fatima wants to buy a 2-bedroom apartment in Dubai Marina for about AED 2M, and she asked for a call tomorrow. Three listings fit: MBR-1002, MBR-1001 and MBR-1022. MBR-1001 and MBR-1024 look like the same Marina Gate 1 unit and are both flagged possible_duplicate, so I included only MBR-1001. MBR-1022 has no rent data. She wrote in Arabic, so the call should probably be in Arabic.",
+        "summary": "Fatima wants to buy a 2-bedroom apartment in Dubai Marina with a budget of about AED 2M, which is approximate. Three available listings fit: MBR-1002 at AED 1.89M is within budget, while MBR-1001 at AED 2.05M and MBR-1022 at AED 2.099M are slightly over. MBR-1024 appears to be a duplicate of MBR-1001, so I included only one of them. MBR-1022 has no rent data.",
         "proposedActions": [
           {
-            "id": "86625532-cf8d-48a1-bac2-6fbe61a62162",
+            "id": "057385ba-7bf1-4079-a287-b359d5074ec1",
             "type": "create_follow_up_task",
             "status": "pending_approval",
             "task": {
-              "title": "Call Fatima Al Suwaidi about Dubai Marina 2BR options",
-              "notes": "She asked for a call tomorrow and wrote in Arabic. Budget is about AED 2M to buy a 2BR apartment in Dubai Marina. Cover MBR-1002 (AED 1.89M, 6.61% gross yield), MBR-1001 (AED 2.05M, 7.32%) and MBR-1022 (AED 2.099M, rent unknown). MBR-1024 appears to be a duplicate of MBR-1001, so confirm which listing is current before sharing it.",
+              "title": "Call Fatima about Dubai Marina 2BR options",
+              "notes": "Share MBR-1002 (AED 1.89M, 6.61% yield), MBR-1001 (AED 2.05M, 7.32% yield) and MBR-1022 (AED 2.099M, rent unknown). Confirm whether she can stretch above AED 2M. MBR-1024 is a possible duplicate of MBR-1001, so check that listing before sharing it. Ask for her timeline and whether she is buying to live in or to invest.",
               "dueAt": "2026-11-17T10:00:00+04:00"
             },
             "needsClarification": null,
@@ -195,7 +195,7 @@
               "total": 0,
               "items": []
             },
-            "durationMs": 21
+            "durationMs": 22
           },
           {
             "tool": "search_listings",
@@ -281,10 +281,10 @@
                 }
               ]
             },
-            "durationMs": 31
+            "durationMs": 36
           }
         ],
-        "createdAt": "2026-11-16T10:32:33.316Z",
+        "createdAt": "2026-11-16T10:51:56.877Z",
         "model": "claude-sonnet-5-5",
         "diagnostics": {
           "droppedRecommendations": [],
@@ -295,9 +295,9 @@
           },
           "searchSkipped": false,
           "usage": {
-            "inputTokens": 10779,
-            "outputTokens": 1175,
-            "totalTokens": 11954
+            "inputTokens": 10657,
+            "outputTokens": 1139,
+            "totalTokens": 11796
           }
         },
         "dataWarnings": [

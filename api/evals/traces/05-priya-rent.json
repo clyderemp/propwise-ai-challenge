@@ -27,9 +27,9 @@
     {
       "label": "Priya",
       "status": 201,
-      "latencyMs": 8225,
+      "latencyMs": 6486,
       "run": {
-        "id": "82eb83d7-c895-424f-a4f7-4718ab0d4e6a",
+        "id": "68e387e6-cbdc-4fac-8597-68e6dc345b74",
         "leadId": "4e9649a2-b0e3-5342-a303-87e4b5eba73f",
         "messageId": "528b3bb0-1b9c-5a38-8d4a-ba3cc7c3968d",
         "status": "completed",
@@ -55,15 +55,15 @@
           "prioritiseYield": false
         },
         "recommendations": [],
-        "summary": "Priya Nair wants to rent a 2-bed in Business Bay for about AED 120,000 a year and move in next month. All of the agency's listings are for sale, so I recommended nothing and did not search. She has no open follow-up tasks. The next step is to ask whether she would consider buying. If she wants to rent, she will need a rental source outside these listings.",
+        "summary": "Priya Nair wants to rent a 2-bedroom in Business Bay for about AED 120,000 a year, and she wants to move in next month. All of the agency's listings are for sale, so I haven't recommended any. She has no open follow-up tasks. The next step is for the agent to ask whether she would consider buying. Otherwise, the agent can refer her to a rental option.",
         "proposedActions": [
           {
-            "id": "4edde7f0-c86e-4de3-b146-1280efef4318",
+            "id": "31abe877-94b5-4a58-9934-2359ca76c950",
             "type": "create_follow_up_task",
             "status": "pending_approval",
             "task": {
               "title": "Call Priya Nair about Business Bay 2BR rental request",
-              "notes": "Priya wants to rent a 2-bed in Business Bay for about AED 120k a year and move in next month. Our listings are for sale only. Ask whether she would consider buying, for example as an investment or to live in. If she wants to rent only, tell her we can't help directly, or refer her to a rentals team.",
+              "notes": "Priya wants to rent a 2BR in Business Bay for about AED 120,000 a year and move in next month. Our listings are all for sale, so tell her we have no rentals to offer. Ask if she would consider buying instead, and if so, get her purchase budget. Otherwise, offer to refer her to a rental option.",
               "dueAt": null
             },
             "needsClarification": "The lead did not say when to follow up.",
@@ -78,10 +78,10 @@
               "total": 0,
               "items": []
             },
-            "durationMs": 17
+            "durationMs": 21
           }
         ],
-        "createdAt": "2026-11-16T10:32:47.210Z",
+        "createdAt": "2026-11-16T10:52:10.349Z",
         "model": "claude-sonnet-5-5",
         "diagnostics": {
           "droppedRecommendations": [],
@@ -92,9 +92,9 @@
           },
           "searchSkipped": false,
           "usage": {
-            "inputTokens": 9710,
-            "outputTokens": 503,
-            "totalTokens": 10213
+            "inputTokens": 9703,
+            "outputTokens": 569,
+            "totalTokens": 10272
           }
         },
         "dataWarnings": []

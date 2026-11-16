@@ -81,9 +81,9 @@
     {
       "label": "Karim (shared run)",
       "status": 201,
-      "latencyMs": 10715,
+      "latencyMs": 11519,
       "run": {
-        "id": "928b13de-a8b9-4dfc-8a1b-f4cf0067a5a7",
+        "id": "d6f9637e-762a-4404-9929-6dcea3635ea9",
         "leadId": "310661c8-6de3-5b3f-80c8-ca4ef71e55b1",
         "messageId": "536370e0-95b4-539e-943b-4a67509c0bea",
         "status": "completed",
@@ -111,7 +111,7 @@
         "recommendations": [
           {
             "propertyId": "473a131f-4f8c-52d5-88d5-88ac173f49ea",
-            "reason": "MBR-1001 is a 2-bedroom apartment in Marina Gate 1, Dubai Marina, asking AED 2,050,000. It is available with a gross yield of 7.32%.",
+            "reason": "MBR-1001 is a 2BR apartment in Marina Gate 1, Dubai Marina, asking AED 2,050,000 with a 7.32% gross yield. It is available.",
             "property": {
               "reference": "MBR-1001",
               "title": "Marina-view 2BR in Marina Gate 1",
@@ -131,7 +131,7 @@
           },
           {
             "propertyId": "21a641ec-60a8-5886-b8ec-7ae82baa48b8",
-            "reason": "MBR-1002 is a 2-bedroom apartment in Princess Tower, Dubai Marina, asking AED 1,890,000. It is available with a gross yield of 6.61%.",
+            "reason": "MBR-1002 is a 2BR apartment in Princess Tower, Dubai Marina, asking AED 1,890,000 with a 6.61% gross yield. It is available.",
             "property": {
               "reference": "MBR-1002",
               "title": "Spacious 2BR in Princess Tower",
@@ -149,7 +149,7 @@
           },
           {
             "propertyId": "bcb641ba-26bb-5bbc-8672-ba7a3c2edbff",
-            "reason": "MBR-1022 is a 2-bedroom apartment in Marina Quays West, Dubai Marina, asking AED 2,099,000. It is available, but the rent is unknown so no yield is available.",
+            "reason": "MBR-1022 is a 2BR apartment in Marina Quays West, Dubai Marina, asking AED 2,099,000. Its rent is unknown, so no yield is available. It is available.",
             "property": {
               "reference": "MBR-1022",
               "title": "2BR in Marina Quays West",
@@ -168,15 +168,15 @@
             }
           }
         ],
-        "summary": "Karim wants to buy a 2-bedroom apartment in Dubai Marina for about AED 2M, and he cares most about rental yield. The best yield is MBR-1001 at 7.32%, then MBR-1002 at 6.61%. MBR-1022 has no rent data, so its yield is unknown. MBR-1024 looks like a duplicate of MBR-1001 (same building, size and price), so I listed only MBR-1001. He asked for a follow-up tomorrow, and there are no open tasks for him.",
+        "summary": "Karim wants to buy a 2BR apartment in Dubai Marina at around AED 2M, with good rental yield as the priority. Searched band was AED 1.8M–2.1M. The best yield is MBR-1001 (7.32%), then MBR-1002 (6.61%, the only one under AED 2M). MBR-1024 looks like a duplicate of MBR-1001 (same building, size, price and rent), so only one is shown. MBR-1022 has no rent data, so its yield is unknown and it is ranked last. MBR-1001 and MBR-1022 are above AED 2M, so check that Karim is comfortable with that.",
         "proposedActions": [
           {
-            "id": "57c4a3a7-a5e0-4b05-9be6-98dcaf1ab4ed",
+            "id": "2a076057-ae3c-46cf-be38-34074056035b",
             "type": "create_follow_up_task",
             "status": "pending_approval",
             "task": {
-              "title": "Call Karim about Dubai Marina 2BR options",
-              "notes": "Karim asked for a follow-up tomorrow. Go through MBR-1001 (AED 2.05M, 7.32% yield), MBR-1002 (AED 1.89M, 6.61%) and MBR-1022 (AED 2.099M, rent unknown). Check whether MBR-1024 is the same unit as MBR-1001. Confirm his budget flexibility and arrange viewings.",
+              "title": "Call Karim about Dubai Marina 2BR yield options",
+              "notes": "Present MBR-1001 (AED 2.05M, 7.32%), MBR-1002 (AED 1.89M, 6.61%) and MBR-1022 (AED 2.099M, rent unknown; get rent estimate). Confirm budget flexibility above AED 2M. Verify whether MBR-1001 and MBR-1024 are the same unit before sharing.",
               "dueAt": "2026-11-17T10:00:00+04:00"
             },
             "needsClarification": null,
@@ -184,6 +184,15 @@
           }
         ],
         "trace": [
+          {
+            "tool": "get_lead_tasks",
+            "input": {},
+            "output": {
+              "total": 0,
+              "items": []
+            },
+            "durationMs": 16
+          },
           {
             "tool": "search_listings",
             "input": {
@@ -268,19 +277,10 @@
                 }
               ]
             },
-            "durationMs": 14
-          },
-          {
-            "tool": "get_lead_tasks",
-            "input": {},
-            "output": {
-              "total": 0,
-              "items": []
-            },
-            "durationMs": 13
+            "durationMs": 26
           }
         ],
-        "createdAt": "2026-11-16T10:32:33.323Z",
+        "createdAt": "2026-11-16T10:51:56.882Z",
         "model": "claude-sonnet-5-5",
         "diagnostics": {
           "droppedRecommendations": [],
@@ -291,9 +291,9 @@
           },
           "searchSkipped": false,
           "usage": {
-            "inputTokens": 10778,
-            "outputTokens": 1153,
-            "totalTokens": 11931
+            "inputTokens": 10658,
+            "outputTokens": 1177,
+            "totalTokens": 11835
           }
         },
         "dataWarnings": [

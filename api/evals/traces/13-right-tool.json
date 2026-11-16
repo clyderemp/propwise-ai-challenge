@@ -80,16 +80,16 @@
       "name": "Karim: no tool input names an agency (scope comes from the login)",
       "pass": true,
       "gating": true,
-      "detail": "[{\"area\":\"Dubai Marina\",\"propertyType\":\"apartment\",\"minBedrooms\":2,\"maxBedrooms\":2,\"minPriceAed\":1800000,\"maxPriceAed\":2100000,\"status\":\"available\",\"reference\":null},{}]"
+      "detail": "[{},{\"area\":\"Dubai Marina\",\"propertyType\":\"apartment\",\"minBedrooms\":2,\"maxBedrooms\":2,\"minPriceAed\":1800000,\"maxPriceAed\":2100000,\"status\":\"available\",\"reference\":null}]"
     }
   ],
   "runs": [
     {
       "label": "Hassan (\"Hi\")",
       "status": 201,
-      "latencyMs": 7711,
+      "latencyMs": 5665,
       "run": {
-        "id": "dbaa40ae-c9a8-4f41-b1bd-134fcc47726f",
+        "id": "68772f18-bc2a-4348-a3fd-e0863e5f276e",
         "leadId": "475073df-8f3e-5574-be40-e659901a2680",
         "messageId": "7fc205e1-7341-56f3-a1c0-a64748f35ff5",
         "status": "completed",
@@ -111,15 +111,15 @@
           "prioritiseYield": false
         },
         "recommendations": [],
-        "summary": "Hassan Ali sent only \"Hi\", with no area, budget, bedrooms, property type or buy/rent intent. No listings were searched, so nothing is recommended. He has no open follow-up tasks. The next step is to contact him and ask what he is looking for.",
+        "summary": "Hassan Ali's message gave no property criteria. It had no area, property type, bedrooms, budget or listing code, and his intent is unknown. I did not search listings and recommend nothing. He has no open follow-up tasks, so the next step is to contact him and find out what he wants.",
         "proposedActions": [
           {
-            "id": "09e5aa36-73ce-4b11-8218-41f5265094a9",
+            "id": "17f5a088-0d47-4b0c-9f5c-7ed787579a0f",
             "type": "create_follow_up_task",
             "status": "pending_approval",
             "task": {
-              "title": "Contact Hassan Ali to find out what he is looking for",
-              "notes": "His only message was \"Hi\". Ask whether he wants to buy or rent, and which areas, budget, bedrooms and property type he has in mind. Ask whether rental yield matters to him. Then shortlist available listings.",
+              "title": "Contact Hassan Ali to clarify property requirements",
+              "notes": "His message gave no criteria. Ask whether he wants to buy or rent, and which areas he prefers. Also ask about property type, bedrooms, budget and whether rental yield matters. Share matching listings once he replies.",
               "dueAt": null
             },
             "needsClarification": "The lead did not say when to follow up.",
@@ -134,19 +134,19 @@
               "total": 0,
               "items": []
             },
-            "durationMs": 12
+            "durationMs": 13
           }
         ],
-        "createdAt": "2026-11-16T10:33:09.041Z",
+        "createdAt": "2026-11-16T10:52:29.570Z",
         "model": "claude-sonnet-5-5",
         "diagnostics": {
           "droppedRecommendations": [],
           "budgetBand": null,
           "searchSkipped": true,
           "usage": {
-            "inputTokens": 7690,
+            "inputTokens": 7696,
             "outputTokens": 435,
-            "totalTokens": 8125
+            "totalTokens": 8131
           }
         },
         "dataWarnings": []
@@ -155,9 +155,9 @@
     {
       "label": "Sophie (\"back to you by Thursday\")",
       "status": 201,
-      "latencyMs": 7605,
+      "latencyMs": 6799,
       "run": {
-        "id": "2e6e122f-e480-456e-bf88-8f15c5151245",
+        "id": "85009457-ea3c-4328-8d71-7d3d13508eda",
         "leadId": "e37a7c4d-f22a-514a-89ae-b0990a62d94b",
         "messageId": "d50c7b57-b3a1-518f-a6d6-8dc5b45f6426",
         "status": "completed",
@@ -179,10 +179,10 @@
           "prioritiseYield": false
         },
         "recommendations": [],
-        "summary": "Sophie Laurent says she will talk to her husband and get back by Thursday. The message has no property criteria (no area, budget, bedrooms, type or intent), so I ran no listing search and recommend nothing. She already has an open task, 'Chase Sophie on the Burj Vista counter-offer', so a new follow-up would duplicate it. Next step: wait for her reply on Thursday, and chase through the existing task if she doesn't respond.",
+        "summary": "Sophie Laurent's message gave no property criteria. It had no area, property type, bedrooms, budget or intent, and no listing codes, so I ran no search and recommend nothing. She already has an open task, 'Chase Sophie on the Burj Vista counter-offer', so I haven't proposed a new follow-up. The agent can cover her wider requirements when they chase her about the counter-offer.",
         "proposedActions": [
           {
-            "id": "9ff261c2-2b19-4570-a2a3-6cd5e670895d",
+            "id": "1b4666c0-0a0e-4e4e-a3bd-77c9962a0e78",
             "type": "create_follow_up_task",
             "status": "pending_approval",
             "task": {
@@ -204,23 +204,23 @@
                 {
                   "title": "Chase Sophie on the Burj Vista counter-offer",
                   "status": "open",
-                  "dueAt": "2026-11-17T10:32:27.751Z"
+                  "dueAt": "2026-11-17T10:51:51.533Z"
                 }
               ]
             },
-            "durationMs": 9
+            "durationMs": 13
           }
         ],
-        "createdAt": "2026-11-16T10:33:09.040Z",
+        "createdAt": "2026-11-16T10:52:29.574Z",
         "model": "claude-sonnet-5-5",
         "diagnostics": {
           "droppedRecommendations": [],
           "budgetBand": null,
           "searchSkipped": true,
           "usage": {
-            "inputTokens": 7886,
-            "outputTokens": 407,
-            "totalTokens": 8293
+            "inputTokens": 7844,
+            "outputTokens": 391,
+            "totalTokens": 8235
           }
         },
         "dataWarnings": []
@@ -229,11 +229,11 @@
     {
       "label": "Listing code MBR-1009",
       "status": 201,
-      "latencyMs": 9422,
+      "latencyMs": 7842,
       "run": {
-        "id": "36c7a1b5-7f2b-4712-8226-8a3a1063f116",
-        "leadId": "87099877-de09-4525-9e2d-e4d297a197c1",
-        "messageId": "8b8cab1f-b49b-4e96-b585-3a7f148fa97a",
+        "id": "ac2eb04c-d6f3-4371-9fe3-4ef2c94c98cb",
+        "leadId": "17b460e2-1d2c-41e8-93fd-658d50c241d5",
+        "messageId": "1333a149-19a4-4f0a-8200-c00e57b4a56a",
         "status": "completed",
         "requirements": {
           "locations": [],
@@ -255,7 +255,7 @@
         "recommendations": [
           {
             "propertyId": "515c90a2-ce40-5d85-bd03-51c05ca25f21",
-            "reason": "MBR-1009 is a 1BR apartment in Marina Gate 2, Dubai Marina, asking AED 1,450,000 with a gross yield of 7.24% (estimated rent AED 105,000). Its status is available.",
+            "reason": "MBR-1009 is a 1BR apartment in Marina Gate 2, Dubai Marina, asking AED 1,450,000 with a gross yield of 7.24% (estimated rent AED 105,000). It is currently available.",
             "property": {
               "reference": "MBR-1009",
               "title": "1BR in Marina Gate 2",
@@ -272,15 +272,15 @@
             }
           }
         ],
-        "summary": "The lead asked whether MBR-1009 is still available. It is: the listing is available at AED 1,450,000, with a 7.24% gross yield. It has no data flags. The lead gave no other requirements, so I'd confirm availability and ask about budget, intent and preferences.",
+        "summary": "The lead asked about listing MBR-1009 and gave no other requirements. It is available, with no data-quality flags. Next step: contact the lead to confirm interest in this unit and find out their budget, intent (buy or rent) and preferences.",
         "proposedActions": [
           {
-            "id": "630f748a-de7a-472e-b05b-e63800fda4f4",
+            "id": "03069cb4-c077-4bf7-93df-d018b93fd342",
             "type": "create_follow_up_task",
             "status": "pending_approval",
             "task": {
-              "title": "Reply to confirm MBR-1009 availability",
-              "notes": "Confirm MBR-1009 (1BR, Marina Gate 2, Dubai Marina, AED 1,450,000, 7.24% gross yield) is available. Ask about the lead's budget, whether they are buying to invest or to live in it, and what else they want, then offer a viewing.",
+              "title": "Contact lead about MBR-1009 Marina Gate 2 1BR",
+              "notes": "Confirm interest in MBR-1009 (1BR, Marina Gate 2, Dubai Marina, AED 1,450,000, 7.24% gross yield, available). Ask about budget, buy vs rent, and preferred areas or bedrooms, and offer a viewing.",
               "dueAt": null
             },
             "needsClarification": "The lead did not say when to follow up.",
@@ -321,7 +321,7 @@
                 }
               ]
             },
-            "durationMs": 7
+            "durationMs": 20
           },
           {
             "tool": "get_lead_tasks",
@@ -330,19 +330,19 @@
               "total": 0,
               "items": []
             },
-            "durationMs": 13
+            "durationMs": 27
           }
         ],
-        "createdAt": "2026-11-16T10:33:16.769Z",
+        "createdAt": "2026-11-16T10:52:36.409Z",
         "model": "claude-sonnet-5-5",
         "diagnostics": {
           "droppedRecommendations": [],
           "budgetBand": null,
           "searchSkipped": false,
           "usage": {
-            "inputTokens": 10079,
-            "outputTokens": 803,
-            "totalTokens": 10882
+            "inputTokens": 10067,
+            "outputTokens": 797,
+            "totalTokens": 10864
           }
         },
         "dataWarnings": []
@@ -351,9 +351,9 @@
     {
       "label": "Karim (shared run)",
       "status": 201,
-      "latencyMs": 10715,
+      "latencyMs": 11519,
       "run": {
-        "id": "928b13de-a8b9-4dfc-8a1b-f4cf0067a5a7",
+        "id": "d6f9637e-762a-4404-9929-6dcea3635ea9",
         "leadId": "310661c8-6de3-5b3f-80c8-ca4ef71e55b1",
         "messageId": "536370e0-95b4-539e-943b-4a67509c0bea",
         "status": "completed",
@@ -381,7 +381,7 @@
         "recommendations": [
           {
             "propertyId": "473a131f-4f8c-52d5-88d5-88ac173f49ea",
-            "reason": "MBR-1001 is a 2-bedroom apartment in Marina Gate 1, Dubai Marina, asking AED 2,050,000. It is available with a gross yield of 7.32%.",
+            "reason": "MBR-1001 is a 2BR apartment in Marina Gate 1, Dubai Marina, asking AED 2,050,000 with a 7.32% gross yield. It is available.",
             "property": {
               "reference": "MBR-1001",
               "title": "Marina-view 2BR in Marina Gate 1",
@@ -401,7 +401,7 @@
           },
           {
             "propertyId": "21a641ec-60a8-5886-b8ec-7ae82baa48b8",
-            "reason": "MBR-1002 is a 2-bedroom apartment in Princess Tower, Dubai Marina, asking AED 1,890,000. It is available with a gross yield of 6.61%.",
+            "reason": "MBR-1002 is a 2BR apartment in Princess Tower, Dubai Marina, asking AED 1,890,000 with a 6.61% gross yield. It is available.",
             "property": {
               "reference": "MBR-1002",
               "title": "Spacious 2BR in Princess Tower",
@@ -419,7 +419,7 @@
           },
           {
             "propertyId": "bcb641ba-26bb-5bbc-8672-ba7a3c2edbff",
-            "reason": "MBR-1022 is a 2-bedroom apartment in Marina Quays West, Dubai Marina, asking AED 2,099,000. It is available, but the rent is unknown so no yield is available.",
+            "reason": "MBR-1022 is a 2BR apartment in Marina Quays West, Dubai Marina, asking AED 2,099,000. Its rent is unknown, so no yield is available. It is available.",
             "property": {
               "reference": "MBR-1022",
               "title": "2BR in Marina Quays West",
@@ -438,15 +438,15 @@
             }
           }
         ],
-        "summary": "Karim wants to buy a 2-bedroom apartment in Dubai Marina for about AED 2M, and he cares most about rental yield. The best yield is MBR-1001 at 7.32%, then MBR-1002 at 6.61%. MBR-1022 has no rent data, so its yield is unknown. MBR-1024 looks like a duplicate of MBR-1001 (same building, size and price), so I listed only MBR-1001. He asked for a follow-up tomorrow, and there are no open tasks for him.",
+        "summary": "Karim wants to buy a 2BR apartment in Dubai Marina at around AED 2M, with good rental yield as the priority. Searched band was AED 1.8M–2.1M. The best yield is MBR-1001 (7.32%), then MBR-1002 (6.61%, the only one under AED 2M). MBR-1024 looks like a duplicate of MBR-1001 (same building, size, price and rent), so only one is shown. MBR-1022 has no rent data, so its yield is unknown and it is ranked last. MBR-1001 and MBR-1022 are above AED 2M, so check that Karim is comfortable with that.",
         "proposedActions": [
           {
-            "id": "57c4a3a7-a5e0-4b05-9be6-98dcaf1ab4ed",
+            "id": "2a076057-ae3c-46cf-be38-34074056035b",
             "type": "create_follow_up_task",
             "status": "pending_approval",
             "task": {
-              "title": "Call Karim about Dubai Marina 2BR options",
-              "notes": "Karim asked for a follow-up tomorrow. Go through MBR-1001 (AED 2.05M, 7.32% yield), MBR-1002 (AED 1.89M, 6.61%) and MBR-1022 (AED 2.099M, rent unknown). Check whether MBR-1024 is the same unit as MBR-1001. Confirm his budget flexibility and arrange viewings.",
+              "title": "Call Karim about Dubai Marina 2BR yield options",
+              "notes": "Present MBR-1001 (AED 2.05M, 7.32%), MBR-1002 (AED 1.89M, 6.61%) and MBR-1022 (AED 2.099M, rent unknown; get rent estimate). Confirm budget flexibility above AED 2M. Verify whether MBR-1001 and MBR-1024 are the same unit before sharing.",
               "dueAt": "2026-11-17T10:00:00+04:00"
             },
             "needsClarification": null,
@@ -454,6 +454,15 @@
           }
         ],
         "trace": [
+          {
+            "tool": "get_lead_tasks",
+            "input": {},
+            "output": {
+              "total": 0,
+              "items": []
+            },
+            "durationMs": 16
+          },
           {
             "tool": "search_listings",
             "input": {
@@ -538,19 +547,10 @@
                 }
               ]
             },
-            "durationMs": 14
-          },
-          {
-            "tool": "get_lead_tasks",
-            "input": {},
-            "output": {
-              "total": 0,
-              "items": []
-            },
-            "durationMs": 13
+            "durationMs": 26
           }
         ],
-        "createdAt": "2026-11-16T10:32:33.323Z",
+        "createdAt": "2026-11-16T10:51:56.882Z",
         "model": "claude-sonnet-5-5",
         "diagnostics": {
           "droppedRecommendations": [],
@@ -561,9 +561,9 @@
           },
           "searchSkipped": false,
           "usage": {
-            "inputTokens": 10778,
-            "outputTokens": 1153,
-            "totalTokens": 11931
+            "inputTokens": 10658,
+            "outputTokens": 1177,
+            "totalTokens": 11835
           }
         },
         "dataWarnings": [

@@ -35,6 +35,12 @@
       "detail": "got [MBR-1009]"
     },
     {
+      "name": "recommends MBR-1009, or recommends nothing and the summary explains it (names MBR-1009 / Marina Gate 2)",
+      "pass": true,
+      "gating": true,
+      "detail": "[MBR-1009] summary: James wants to buy a 1-bedroom in Jumeirah Lake Towers or Dubai Marina for up to AED 1.5M. The only match is MBR-1009 in Dubai Marina. There are no available 1BR listings in Jumeirah Lake Towers within budget. No data issues are flagged. His only existing task, sending the Marina Gate 2 floor plan, is done."
+    },
+    {
       "name": "locations within {Dubai Marina, Jumeirah Lake Towers} and not empty",
       "pass": true,
       "gating": true,
@@ -57,9 +63,9 @@
     {
       "label": "James",
       "status": 201,
-      "latencyMs": 12798,
+      "latencyMs": 10795,
       "run": {
-        "id": "ea54bdf7-a482-43c3-beb8-21b112b52530",
+        "id": "4a62f23e-5403-447a-b6c6-aa6b2e34542c",
         "leadId": "ac364939-7391-5caa-90c7-6aefc6ee7908",
         "messageId": "87cb28d2-3a64-58b2-96f5-d6358c5bf5db",
         "status": "completed",
@@ -86,7 +92,7 @@
         "recommendations": [
           {
             "propertyId": "515c90a2-ce40-5d85-bd03-51c05ca25f21",
-            "reason": "MBR-1009 is a 1-bed apartment in Marina Gate 2, Dubai Marina, asking AED 1,450,000 with a gross yield of 7.24% (estimated rent AED 105,000). It is available.",
+            "reason": "MBR-1009 is a 1BR apartment in Marina Gate 2, Dubai Marina, asking AED 1,450,000 with a 7.24% gross yield (est. rent AED 105,000). It is available.",
             "property": {
               "reference": "MBR-1009",
               "title": "1BR in Marina Gate 2",
@@ -103,15 +109,15 @@
             }
           }
         ],
-        "summary": "James wants to buy a 1-bed in JLT or Dubai Marina for up to AED 1.5M. He found his previous viewing a bit small, and he asked for a call after the weekend. Only one listing fits: MBR-1009 in Dubai Marina. It is 850 sqft, so check that the size works for him, since he thought the last one was small. No 1-bed in JLT is available within budget. There are no data issues. The only existing task, sending the Marina Gate 2 floor plan, is done.",
+        "summary": "James wants to buy a 1-bedroom in Jumeirah Lake Towers or Dubai Marina for up to AED 1.5M. The only match is MBR-1009 in Dubai Marina. There are no available 1BR listings in Jumeirah Lake Towers within budget. No data issues are flagged. His only existing task, sending the Marina Gate 2 floor plan, is done.",
         "proposedActions": [
           {
-            "id": "87cc6bec-ad61-4a58-984f-0b29061740d2",
+            "id": "a52c9c62-134d-43a2-b9fe-51e24f6f2d08",
             "type": "create_follow_up_task",
             "status": "pending_approval",
             "task": {
-              "title": "Call James after the weekend about 1-bed options in Marina/JLT",
-              "notes": "James found the last property a bit small. Present MBR-1009 (Marina Gate 2, 1BR, 850 sqft, AED 1,450,000, 7.24% gross yield) and confirm the size suits him. Tell him there are currently no available 1-beds in JLT within AED 1.5M. Ask whether he would consider a slightly higher budget or other areas.",
+              "title": "Call James about Marina Gate 2 1BR (MBR-1009)",
+              "notes": "Discuss MBR-1009 (AED 1,450,000, 7.24% gross yield, available) and arrange a viewing. Tell him there are no JLT 1BR options within AED 1.5M right now, and ask whether he would widen the budget or consider other areas.",
               "dueAt": "2026-11-16T10:00:00+04:00"
             },
             "needsClarification": null,
@@ -136,7 +142,7 @@
               "truncated": false,
               "items": []
             },
-            "durationMs": 20
+            "durationMs": 23
           },
           {
             "tool": "get_lead_tasks",
@@ -147,11 +153,11 @@
                 {
                   "title": "Send James the Marina Gate 2 floor plan",
                   "status": "done",
-                  "dueAt": "2026-11-14T11:52:27.751Z"
+                  "dueAt": "2026-11-14T12:11:51.533Z"
                 }
               ]
             },
-            "durationMs": 18
+            "durationMs": 24
           },
           {
             "tool": "search_listings",
@@ -186,10 +192,10 @@
                 }
               ]
             },
-            "durationMs": 21
+            "durationMs": 35
           }
         ],
-        "createdAt": "2026-11-16T10:32:52.132Z",
+        "createdAt": "2026-11-16T10:52:16.253Z",
         "model": "claude-sonnet-5-5",
         "diagnostics": {
           "droppedRecommendations": [],
@@ -200,9 +206,9 @@
           },
           "searchSkipped": false,
           "usage": {
-            "inputTokens": 10645,
-            "outputTokens": 1164,
-            "totalTokens": 11809
+            "inputTokens": 10545,
+            "outputTokens": 1095,
+            "totalTokens": 11640
           }
         },
         "dataWarnings": []

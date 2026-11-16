@@ -38,16 +38,16 @@
       "name": "a successful empty search is not reported as a failure",
       "pass": true,
       "gating": true,
-      "detail": "[\"search_listings\",\"get_lead_tasks\"]"
+      "detail": "[\"get_lead_tasks\",\"search_listings\"]"
     }
   ],
   "runs": [
     {
       "label": "Lina",
       "status": 201,
-      "latencyMs": 8073,
+      "latencyMs": 7807,
       "run": {
-        "id": "3c6bcbca-ac05-4789-9335-9464b0951094",
+        "id": "578862a4-b89c-4b94-85b2-cf43477bfa28",
         "leadId": "0bab04e6-d42d-521e-aa18-d256456a6b69",
         "messageId": "6fd52efc-4a8a-5dc8-b6d5-fa1f85a045db",
         "status": "completed",
@@ -71,22 +71,31 @@
           "prioritiseYield": false
         },
         "recommendations": [],
-        "summary": "Lina wants to buy a 5-bedroom villa in Dubai Marina for up to AED 900,000 and says she is ready to buy this week. The search returned no available listings that match. The budget looks low for a villa of that size in this area. Next step is to call her, check how firm the budget and area are, and discuss alternatives.",
+        "summary": "Lina Haddad wants to buy a 5-bedroom villa in Dubai Marina for up to AED 900,000. No available listings match. The search returned no results, and a budget this low is unlikely to cover a villa of that size in that area. Next step: call Lina to discuss raising the budget, or look at other areas or property types.",
         "proposedActions": [
           {
-            "id": "c28e7546-0cfc-4b21-af27-2d147557b560",
+            "id": "aedfccca-5842-48b1-9424-c4da3ce8eeee",
             "type": "create_follow_up_task",
             "status": "pending_approval",
             "task": {
-              "title": "Call Lina Haddad about 5BR Dubai Marina villa budget",
-              "notes": "No available 5-bedroom villas in Dubai Marina under AED 900,000 were found. Ask whether she can raise her budget, consider other areas or a smaller unit, and confirm her purchase timeline and financing.",
+              "title": "Call Lina Haddad about 5BR villa budget in Dubai Marina",
+              "notes": "No available 5-bedroom villas in Dubai Marina at or under AED 900,000. Ask whether she can raise her budget, or whether she would consider other areas, smaller villas, townhouses or apartments. Lina has no open tasks.",
               "dueAt": null
             },
-            "needsClarification": "\"this week\" does not specify a single day",
+            "needsClarification": "\"this week\" does not point to a single day",
             "taskId": null
           }
         ],
         "trace": [
+          {
+            "tool": "get_lead_tasks",
+            "input": {},
+            "output": {
+              "total": 0,
+              "items": []
+            },
+            "durationMs": 16
+          },
           {
             "tool": "search_listings",
             "input": {
@@ -104,19 +113,10 @@
               "truncated": false,
               "items": []
             },
-            "durationMs": 22
-          },
-          {
-            "tool": "get_lead_tasks",
-            "input": {},
-            "output": {
-              "total": 0,
-              "items": []
-            },
             "durationMs": 19
           }
         ],
-        "createdAt": "2026-11-16T10:32:44.056Z",
+        "createdAt": "2026-11-16T10:52:08.447Z",
         "model": "claude-sonnet-5-5",
         "diagnostics": {
           "droppedRecommendations": [],
@@ -127,9 +127,9 @@
           },
           "searchSkipped": false,
           "usage": {
-            "inputTokens": 10015,
-            "outputTokens": 709,
-            "totalTokens": 10724
+            "inputTokens": 9947,
+            "outputTokens": 718,
+            "totalTokens": 10665
           }
         },
         "dataWarnings": []
