@@ -46,6 +46,9 @@ const DEFAULT_RUN_TIMEOUT_MS = 110_000;
 const MAX_TITLE = 200; // CreateTaskDto limits
 const MAX_NOTES = 5000;
 const MAX_ERROR = 500;
+/** Slack after the deadline before a 'running' run is treated as orphaned (the run's own failure write). */
+const OVERDUE_GRACE_MS = 15_000;
+const INTERRUPTED_ERROR = 'The run was interrupted (the API restarted or crashed before it finished). Start a new analysis.';
 
 function runTimeoutMs(): number {
   const value = Number(process.env.ASSISTANT_RUN_TIMEOUT_MS);
@@ -158,15 +161,24 @@ export class AssistantService implements OnApplicationBootstrap {
    * process (or an eval) sharing the database never fails a run that is still in flight.
    */
   async failInterruptedRuns(): Promise<number> {
-    const cutoff = new Date(Date.now() - 2 * runTimeoutMs());
+    return this.failRunningOlderThan(2 * runTimeoutMs(), {});
+  }
+
+  /**
+   * Expire on read: every live run fails itself at the deadline, so a lead's run still 'running' after the
+   * deadline plus a grace period has no process behind it (e.g. the API restarted mid-run and came back
+   * before the startup cutoff). Without this the panels would show it as in progress forever.
+   */
+  private failOverdueRunsOfLead(agencyId: string, leadId: string): Promise<number> {
+    return this.failRunningOlderThan(runTimeoutMs() + OVERDUE_GRACE_MS, { agency: agencyId, lead: leadId });
+  }
+
+  private failRunningOlderThan(ageMs: number, scope: { agency?: string; lead?: string }): Promise<number> {
+    const cutoff = new Date(Date.now() - ageMs);
     return this.em.fork().nativeUpdate(
       AssistantRunEntity,
-      { status: 'running', createdAt: { $lt: cutoff } },
-      {
-        status: 'failed',
-        error: 'The run was interrupted (the API restarted or crashed before it finished). Start a new analysis.',
-        finishedAt: new Date(),
-      },
+      { ...scope, status: 'running', createdAt: { $lt: cutoff } },
+      { status: 'failed', error: INTERRUPTED_ERROR, finishedAt: new Date() },
     );
   }
 
@@ -182,6 +194,7 @@ export class AssistantService implements OnApplicationBootstrap {
   /** The lead's runs, newest first. */
   async listRuns(agencyId: string, leadId: string, limit: number): Promise<AssistantRun[]> {
     const lead = await this.findLead(agencyId, leadId);
+    await this.failOverdueRunsOfLead(agencyId, lead.id);
     const runs = await this.em.find(
       AssistantRunEntity,
       { lead, agency: agencyId },
@@ -197,7 +210,10 @@ export class AssistantService implements OnApplicationBootstrap {
   }
 
   async getRun(agencyId: string, leadId: string, runId: string): Promise<AssistantRun> {
-    const run = await this.findRun(agencyId, leadId, runId);
+    let run = await this.findRun(agencyId, leadId, runId);
+    if (run.status === 'running' && (await this.failOverdueRunsOfLead(agencyId, run.lead.id)) > 0) {
+      run = await this.em.findOneOrFail(AssistantRunEntity, { id: run.id, agency: agencyId }, { refresh: true });
+    }
     return toAssistantRunDto(run, await this.actionsOf(run));
   }
 

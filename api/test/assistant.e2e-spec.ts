@@ -372,6 +372,31 @@ describe('AI assistant API (scripted agent)', () => {
       const freshNow = (await http().get(`${runsPath(LINA)}/${fresh.id}`).set(bearer(sara)).expect(200)).body;
       expect(freshNow.status).toBe('running');
     });
+
+    it('a young orphan (restart within twice the deadline) ends failed on read once its deadline has passed', async () => {
+      const em = app.get(MikroORM).em.fork();
+      const orphan = await startRun(sara, LINA);
+      const inFlight = await startRun(sara, LINA);
+      // 150 s old: past the 110 s run deadline (plus grace), younger than the 220 s startup cutoff.
+      await em.getConnection().execute(
+        `update assistant_runs set status = 'running', finished_at = null, created_at = now() - interval '150 seconds' where id = ?`,
+        [orphan.id],
+      );
+      await em.getConnection().execute(`update assistant_runs set status = 'running', finished_at = null where id = ?`, [inFlight.id]);
+
+      const listed = (await http().get(`${runsPath(LINA)}?limit=5`).set(bearer(sara)).expect(200)).body as Json[];
+      const orphanListed = listed.find((r) => r.id === orphan.id);
+      expect(orphanListed).toMatchObject({ status: 'failed', recommendations: [], proposedActions: [], requirements: EMPTY_REQUIREMENTS });
+      expect(orphanListed?.error).toMatch(/interrupted/i);
+      expect(listed.find((r) => r.id === inFlight.id)?.status).toBe('running');
+
+      const fetched = (await http().get(`${runsPath(LINA)}/${orphan.id}`).set(bearer(sara)).expect(200)).body;
+      expect(fetched.status).toBe('failed');
+      expect((await http().get(`${runsPath(LINA)}/${inFlight.id}`).set(bearer(sara)).expect(200)).body.status).toBe('running');
+
+      // Leave the in-flight row finished so later tests see a clean lead.
+      await em.getConnection().execute(`update assistant_runs set status = 'failed', error = 'test cleanup', finished_at = now() where id = ?`, [inFlight.id]);
+    });
   });
 
   describe('approve and reject', () => {
