@@ -62,7 +62,11 @@
     "transform": {
       "^.+\\.ts$": "ts-jest"
     },
-    "testEnvironment": "node"
+    "testEnvironment": "node",
+    "testPathIgnorePatterns": [
+      "/node_modules/",
+      "/\\._"
+    ]
   },
   "pnpm": {
     "onlyBuiltDependencies": [
