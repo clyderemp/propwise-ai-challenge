@@ -1,10 +1,12 @@
 // The scripted, deterministic agent: no API key, no model calls, no spend.
 process.env.ASSISTANT_AGENT_IMPL = 'fake';
 
+import { MikroORM } from '@mikro-orm/postgresql';
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { App } from 'supertest/types';
 import { stableId } from '../src/db/stable-id';
+import { Agent } from '../src/entities';
 import { bearer, bootApp, login, OMAR, SARA } from './helpers';
 
 const KARIM = stableId('lead', 'karim');
@@ -199,6 +201,37 @@ describe('AI assistant API (scripted agent)', () => {
       expect(action.id).toMatch(/^[0-9a-f-]{36}$/);
       expect(typeof action.task.title).toBe('string');
       expect(action.task.dueAt).toBe(dubaiTomorrowAt10(message.sentAt));
+    });
+
+    /** Temporarily gives Sara another timezone, straight in the database (there is no endpoint for it). */
+    async function withSaraTimezone(timezone: string, body: () => Promise<void>) {
+      const em = app.get(MikroORM).em.fork();
+      await em.nativeUpdate(Agent, { email: SARA }, { timezone });
+      try {
+        await body();
+      } finally {
+        await em.nativeUpdate(Agent, { email: SARA }, { timezone: 'Asia/Dubai' });
+      }
+    }
+
+    it("uses the logged-in agent's timezone, not the server's", async () => {
+      await withSaraTimezone('Asia/Tokyo', async () => {
+        const run = await startRun(sara, KARIM);
+        const detail = await http().get(`/leads/${KARIM}`).set(bearer(sara)).expect(200);
+        const sentAt = new Date(detail.body.messages.find((m: Json) => m.id === KARIM_MESSAGE).sentAt);
+        const local = new Date(sentAt.getTime() + 9 * 3_600_000);
+        const next = new Date(Date.UTC(local.getUTCFullYear(), local.getUTCMonth(), local.getUTCDate() + 1));
+        expect(run.proposedActions[0].task.dueAt).toBe(`${next.toISOString().slice(0, 10)}T10:00:00+09:00`);
+      });
+    });
+
+    it('fails the run, rather than guessing, when the agent timezone is not a real zone', async () => {
+      await withSaraTimezone('Mars/Olympus_Mons', async () => {
+        const run = await startRun(sara, KARIM);
+        expect(run.status).toBe('failed');
+        expect(run.requirements).toEqual(EMPTY_REQUIREMENTS);
+        expect(run.proposedActions).toEqual([]);
+      });
     });
 
     it('says the date is unclear instead of guessing', async () => {
