@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { ASSISTANT_PROPERTY_TYPES, Extraction, FOLLOW_UP_KINDS, LEAD_INTENTS, WEEKDAYS } from '../assistant.types';
+import { ASSISTANT_PROPERTY_TYPES, Extraction, FOLLOW_UP_KINDS, LEAD_INTENTS, TIMELINE_KINDS, WEEKDAYS } from '../assistant.types';
 
 /**
  * Structured-output schemas (plan 2.4 and 2.6). Every field is required and nullable where it can
@@ -32,6 +32,16 @@ export const extractionSchema = z.object({
     quote: z.string().nullable().describe('The exact words the timing was read from.'),
     unclearReason: z.string().nullable().describe('unclear only: why the timing cannot be pinned to a date.'),
   }),
+  timeline: z
+    .object({
+      kind: z.enum(TIMELINE_KINDS).describe('How soon the lead means to buy or move. Not when to contact them.'),
+      days: z.number().int().nullable().describe('within_days only: "within 2 weeks" = 14.'),
+      month: z.number().int().nullable().describe('by_date only: 1-12.'),
+      day: z.number().int().nullable().describe('by_date only: 1-31.'),
+      year: z.number().int().nullable().describe('by_date only, when stated.'),
+      quote: z.string().nullable().describe('The exact words the timeline was read from.'),
+    })
+    .describe("The lead's purchase or move timeline, separate from followUp."),
   leadAskedForFollowUp: z.boolean().describe('True when the lead asks the agent to contact or follow up with them.'),
 });
 

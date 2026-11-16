@@ -162,7 +162,7 @@ function extract(body: string, agencyAreas: readonly string[]): Extraction {
   }
   r.listingReferences = [...new Set(text.match(/\b[A-Z]{2,4}-\d{3,5}\b/g) ?? [])];
 
-  return { requirements: r, ...followUpOf(text) };
+  return { requirements: r, ...followUpOf(text), timeline: { kind: 'none', days: null, month: null, day: null, year: null, quote: null } };
 }
 
 function followUpOf(text: string): { followUp: FollowUpIntent; leadAskedForFollowUp: boolean } {

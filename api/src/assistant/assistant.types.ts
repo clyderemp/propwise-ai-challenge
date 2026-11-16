@@ -321,6 +321,8 @@ export interface ExtractedRequirements {
 export interface Extraction {
   requirements: ExtractedRequirements;
   followUp: FollowUpIntent;
+  /** The lead's purchase or move timeline: separate from when to contact them (followUp). */
+  timeline: TimelineIntent;
   leadAskedForFollowUp: boolean;
 }
 

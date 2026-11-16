@@ -81,6 +81,7 @@ const EXTRACTION = {
     listingReferences: [],
   },
   followUp: { kind: 'none', days: null, weekday: null, month: null, day: null, year: null, time: null, quote: null, unclearReason: null },
+  timeline: { kind: 'none', days: null, month: null, day: null, year: null, quote: null },
   leadAskedForFollowUp: false,
 };
 

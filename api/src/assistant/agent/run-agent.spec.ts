@@ -5,7 +5,8 @@ import { FaultInjector } from './fault-injector';
 import { NOT_CONFIGURED_MESSAGE, AnthropicLlmGateway } from './llm.gateway';
 import { factualReason } from '../domain/matching';
 import { normalizeExtraction, runAssistantAgent, RunAgentDeps } from './run-agent';
-import { ExtractionOutput } from './schemas';
+import { EXTRACTION_SYSTEM } from './prompts';
+import { ExtractionOutput, extractionSchema } from './schemas';
 import { FakeDataAccess } from './testing/fake-data-access';
 import { ScriptedModel, ScriptedStep, scriptedGateway } from './testing/scripted-model';
 
@@ -36,6 +37,7 @@ function karimExtraction(overrides: Partial<ExtractionOutput['requirements']> = 
       ...overrides,
     },
     followUp: { kind: 'relative_days', days: 1, weekday: null, month: null, day: null, year: null, time: null, quote: 'tomorrow', unclearReason: null },
+    timeline: { kind: 'none', days: null, month: null, day: null, year: null, quote: null },
     leadAskedForFollowUp: true,
   };
 }
@@ -56,6 +58,7 @@ function emptyExtraction(): ExtractionOutput {
       listingReferences: [],
     },
     followUp: { kind: 'none', days: null, weekday: null, month: null, day: null, year: null, time: null, quote: null, unclearReason: null },
+    timeline: { kind: 'none', days: null, month: null, day: null, year: null, quote: null },
     leadAskedForFollowUp: false,
   };
 }
@@ -346,6 +349,26 @@ describe('runAssistantAgent', () => {
   });
 });
 
+describe('extraction schema and prompt: timeline vs contact timing', () => {
+  it('requires a timeline next to followUp', () => {
+    const { timeline: _t, ...withoutTimeline } = karimExtraction();
+    expect(extractionSchema.safeParse(withoutTimeline).success).toBe(false);
+    const lina = { ...karimExtraction(), timeline: { kind: 'this_week', days: null, month: null, day: null, year: null, quote: 'Ready to buy this week' } };
+    expect(extractionSchema.safeParse(lina).success).toBe(true);
+    expect(extractionSchema.safeParse({ ...lina, timeline: { ...lina.timeline, kind: 'next_year' } }).success).toBe(false);
+  });
+
+  it('tells the model to keep the timeline apart from contact timing, with worked examples, and never to compute dates', () => {
+    expect(EXTRACTION_SYSTEM).toMatch(/timeline/);
+    for (const example of ['Ready to buy this week', 'moving in next month', 'call me after the weekend', 'no rush, maybe next year']) {
+      expect(EXTRACTION_SYSTEM).toContain(example);
+    }
+    expect(EXTRACTION_SYSTEM).toMatch(/never compute a date/i);
+    // "next week" is a timeline unless it is about contact; it is no longer a blanket "unclear".
+    expect(EXTRACTION_SYSTEM).not.toMatch(/\("sometime soon", "next week", "later"\)/);
+  });
+});
+
 describe('normalizeExtraction', () => {
   const areas = ['Dubai Marina', 'Jumeirah Lake Towers'];
 
@@ -365,6 +388,13 @@ describe('normalizeExtraction', () => {
     expect([x.requirements.budgetMinAed, x.requirements.budgetMaxAed]).toEqual([null, 2_000_000]);
     expect(x.requirements.listingReferences).toEqual(['MBR-1009']);
     expect(x.requirements.preferences).toEqual(['sea view']);
+  });
+
+  it('keeps the timeline, trims its quote and nulls invalid numbers', () => {
+    const raw = karimExtraction();
+    raw.timeline = { kind: 'within_days', days: -2, month: 13, day: 0, year: 2027, quote: '  within a few days  ' };
+    const x = normalizeExtraction(raw, areas);
+    expect(x.timeline).toEqual({ kind: 'within_days', days: null, month: null, day: null, year: 2027, quote: 'within a few days' });
   });
 
   it('nulls negative bedrooms and a malformed time', () => {

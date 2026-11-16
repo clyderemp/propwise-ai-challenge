@@ -116,6 +116,10 @@ function uniqueTrimmed(values: readonly string[], map: (s: string) => string = (
   return out;
 }
 
+function inRange(n: number | null, min: number, max: number): number | null {
+  return n !== null && Number.isInteger(n) && n >= min && n <= max ? n : null;
+}
+
 /** Deterministic clean-up of the Phase A output (plan 2.4). */
 export function normalizeExtraction(raw: ExtractionOutput, agencyAreas: readonly string[]): Extraction {
   const r = raw.requirements;
@@ -139,6 +143,14 @@ export function normalizeExtraction(raw: ExtractionOutput, agencyAreas: readonly
       listingReferences: uniqueTrimmed(r.listingReferences, (s) => s.toUpperCase()),
     },
     followUp: { ...raw.followUp, time: raw.followUp.time !== null && TIME_RE.test(raw.followUp.time.trim()) ? raw.followUp.time.trim() : null },
+    timeline: {
+      kind: raw.timeline.kind,
+      days: nonNegativeInt(raw.timeline.days),
+      month: inRange(raw.timeline.month, 1, 12),
+      day: inRange(raw.timeline.day, 1, 31),
+      year: raw.timeline.year,
+      quote: raw.timeline.quote?.trim() || null,
+    },
     leadAskedForFollowUp: raw.leadAskedForFollowUp,
   };
 }
