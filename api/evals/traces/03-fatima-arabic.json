@@ -1,0 +1,329 @@
+{
+  "case": "03-fatima-arabic",
+  "title": "Arabic message with Arabic-Indic digits (Fatima)",
+  "covers": "1, 2, 4",
+  "verdict": "PASS",
+  "assertions": [
+    {
+      "name": "Fatima: HTTP 201 and status completed",
+      "pass": true,
+      "gating": true,
+      "detail": "HTTP 201, status completed"
+    },
+    {
+      "name": "locations is exactly [\"Dubai Marina\"] (canonical spelling)",
+      "pass": true,
+      "gating": true,
+      "detail": "[\"Dubai Marina\"]"
+    },
+    {
+      "name": "bedrooms is 2 (from \"٢\"-style Arabic text)",
+      "pass": true,
+      "gating": true,
+      "detail": "2"
+    },
+    {
+      "name": "propertyType is apartment",
+      "pass": true,
+      "gating": true,
+      "detail": "\"apartment\""
+    },
+    {
+      "name": "intent is not rent",
+      "pass": true,
+      "gating": true,
+      "detail": "\"buy\""
+    },
+    {
+      "name": "budgetAed.max between 2,000,000 and 2,200,000",
+      "pass": true,
+      "gating": true,
+      "detail": "{\"min\":null,\"max\":2000000}"
+    },
+    {
+      "name": "Fatima: recommendations within {MBR-1001, MBR-1002, MBR-1022, MBR-1024}",
+      "pass": true,
+      "gating": true,
+      "detail": "got [MBR-1002, MBR-1001, MBR-1022]"
+    },
+    {
+      "name": "never both MBR-1001 and MBR-1024",
+      "pass": true,
+      "gating": true,
+      "detail": "[MBR-1002, MBR-1001, MBR-1022]"
+    },
+    {
+      "name": "Fatima: exactly one proposed action, pending approval",
+      "pass": true,
+      "gating": true,
+      "detail": "got [\"pending_approval\"]"
+    },
+    {
+      "name": "dueAt is \"غداً\" (tomorrow): 2026-11-17T10:00:00+04:00",
+      "pass": true,
+      "gating": true,
+      "detail": "\"2026-11-17T10:00:00+04:00\""
+    },
+    {
+      "name": "Fatima: MBR-1002 reason quotes only the computed gross yield",
+      "pass": true,
+      "gating": false,
+      "detail": "computed 6.61%, quoted [6.61]"
+    },
+    {
+      "name": "Fatima: MBR-1001 reason quotes only the computed gross yield",
+      "pass": true,
+      "gating": false,
+      "detail": "computed 7.32%, quoted [7.32]"
+    },
+    {
+      "name": "Fatima: MBR-1022 reason quotes only the computed gross yield",
+      "pass": true,
+      "gating": false,
+      "detail": "computed unknown, quoted []"
+    }
+  ],
+  "runs": [
+    {
+      "label": "Fatima",
+      "status": 201,
+      "latencyMs": 11055,
+      "run": {
+        "id": "581df318-c211-44ac-85a8-64130f8bb9c0",
+        "leadId": "f7e72c18-9aeb-5f8a-a5a8-c7a3a7508ed1",
+        "messageId": "95ec5924-b0f1-56c1-96da-5424b5b0a2f0",
+        "status": "completed",
+        "requirements": {
+          "locations": [
+            "Dubai Marina"
+          ],
+          "bedrooms": 2,
+          "budgetAed": {
+            "min": null,
+            "max": 2000000
+          },
+          "propertyType": "apartment",
+          "intent": "buy",
+          "preferences": [],
+          "bedroomsRange": {
+            "min": 2,
+            "max": 2
+          },
+          "budgetIsApproximate": true,
+          "prioritiseYield": false
+        },
+        "recommendations": [
+          {
+            "propertyId": "21a641ec-60a8-5886-b8ec-7ae82baa48b8",
+            "reason": "MBR-1002 is a 2-bedroom apartment in Dubai Marina asking AED 1,890,000, with a gross yield of 6.61%. It is available.",
+            "property": {
+              "reference": "MBR-1002",
+              "title": "Spacious 2BR in Princess Tower",
+              "area": "Dubai Marina",
+              "building": "Princess Tower",
+              "type": "apartment",
+              "bedrooms": 2,
+              "sizeSqft": 1410,
+              "priceAed": 1890000,
+              "annualRentAed": 125000,
+              "grossYieldPct": 6.61,
+              "status": "available",
+              "flags": []
+            }
+          },
+          {
+            "propertyId": "473a131f-4f8c-52d5-88d5-88ac173f49ea",
+            "reason": "MBR-1001 is a 2-bedroom apartment in Marina Gate 1, Dubai Marina, asking AED 2,050,000, with a gross yield of 7.32%. It is available.",
+            "property": {
+              "reference": "MBR-1001",
+              "title": "Marina-view 2BR in Marina Gate 1",
+              "area": "Dubai Marina",
+              "building": "Marina Gate 1",
+              "type": "apartment",
+              "bedrooms": 2,
+              "sizeSqft": 1320,
+              "priceAed": 2050000,
+              "annualRentAed": 150000,
+              "grossYieldPct": 7.32,
+              "status": "available",
+              "flags": [
+                "possible_duplicate"
+              ]
+            }
+          },
+          {
+            "propertyId": "bcb641ba-26bb-5bbc-8672-ba7a3c2edbff",
+            "reason": "MBR-1022 is a 2-bedroom apartment in Marina Quays West, Dubai Marina, asking AED 2,099,000. It is available, but the rent is unknown so there is no yield figure.",
+            "property": {
+              "reference": "MBR-1022",
+              "title": "2BR in Marina Quays West",
+              "area": "Dubai Marina",
+              "building": "Marina Quays West",
+              "type": "apartment",
+              "bedrooms": 2,
+              "sizeSqft": 1250,
+              "priceAed": 2099000,
+              "annualRentAed": null,
+              "grossYieldPct": null,
+              "status": "available",
+              "flags": [
+                "rent_missing"
+              ]
+            }
+          }
+        ],
+        "summary": "Fatima wants to buy a 2-bedroom apartment in Dubai Marina for about AED 2M, and she asked for a call tomorrow. Three listings fit: MBR-1002, MBR-1001 and MBR-1022. MBR-1001 and MBR-1024 look like the same Marina Gate 1 unit and are both flagged possible_duplicate, so I included only MBR-1001. MBR-1022 has no rent data. She wrote in Arabic, so the call should probably be in Arabic.",
+        "proposedActions": [
+          {
+            "id": "86625532-cf8d-48a1-bac2-6fbe61a62162",
+            "type": "create_follow_up_task",
+            "status": "pending_approval",
+            "task": {
+              "title": "Call Fatima Al Suwaidi about Dubai Marina 2BR options",
+              "notes": "She asked for a call tomorrow and wrote in Arabic. Budget is about AED 2M to buy a 2BR apartment in Dubai Marina. Cover MBR-1002 (AED 1.89M, 6.61% gross yield), MBR-1001 (AED 2.05M, 7.32%) and MBR-1022 (AED 2.099M, rent unknown). MBR-1024 appears to be a duplicate of MBR-1001, so confirm which listing is current before sharing it.",
+              "dueAt": "2026-11-17T10:00:00+04:00"
+            },
+            "needsClarification": null,
+            "taskId": null
+          }
+        ],
+        "trace": [
+          {
+            "tool": "get_lead_tasks",
+            "input": {},
+            "output": {
+              "total": 0,
+              "items": []
+            },
+            "durationMs": 21
+          },
+          {
+            "tool": "search_listings",
+            "input": {
+              "area": "Dubai Marina",
+              "propertyType": "apartment",
+              "minBedrooms": 2,
+              "maxBedrooms": 2,
+              "minPriceAed": 1800000,
+              "maxPriceAed": 2100000,
+              "status": "available",
+              "reference": null
+            },
+            "output": {
+              "total": 4,
+              "truncated": false,
+              "items": [
+                {
+                  "id": "21a641ec-60a8-5886-b8ec-7ae82baa48b8",
+                  "reference": "MBR-1002",
+                  "title": "Spacious 2BR in Princess Tower",
+                  "area": "Dubai Marina",
+                  "building": "Princess Tower",
+                  "type": "apartment",
+                  "bedrooms": 2,
+                  "sizeSqft": 1410,
+                  "priceAed": 1890000,
+                  "annualRentAed": 125000,
+                  "grossYieldPct": 6.61,
+                  "status": "available",
+                  "flags": []
+                },
+                {
+                  "id": "473a131f-4f8c-52d5-88d5-88ac173f49ea",
+                  "reference": "MBR-1001",
+                  "title": "Marina-view 2BR in Marina Gate 1",
+                  "area": "Dubai Marina",
+                  "building": "Marina Gate 1",
+                  "type": "apartment",
+                  "bedrooms": 2,
+                  "sizeSqft": 1320,
+                  "priceAed": 2050000,
+                  "annualRentAed": 150000,
+                  "grossYieldPct": 7.32,
+                  "status": "available",
+                  "flags": [
+                    "possible_duplicate"
+                  ]
+                },
+                {
+                  "id": "fd0bba47-47be-5eaa-8534-185b5cd796e8",
+                  "reference": "MBR-1024",
+                  "title": "Marina view 2BR, Marina Gate 1 (high floor)",
+                  "area": "Dubai Marina",
+                  "building": "Marina Gate 1",
+                  "type": "apartment",
+                  "bedrooms": 2,
+                  "sizeSqft": 1320,
+                  "priceAed": 2050000,
+                  "annualRentAed": 150000,
+                  "grossYieldPct": 7.32,
+                  "status": "available",
+                  "flags": [
+                    "possible_duplicate"
+                  ]
+                },
+                {
+                  "id": "bcb641ba-26bb-5bbc-8672-ba7a3c2edbff",
+                  "reference": "MBR-1022",
+                  "title": "2BR in Marina Quays West",
+                  "area": "Dubai Marina",
+                  "building": "Marina Quays West",
+                  "type": "apartment",
+                  "bedrooms": 2,
+                  "sizeSqft": 1250,
+                  "priceAed": 2099000,
+                  "annualRentAed": null,
+                  "grossYieldPct": null,
+                  "status": "available",
+                  "flags": [
+                    "rent_missing"
+                  ]
+                }
+              ]
+            },
+            "durationMs": 31
+          }
+        ],
+        "createdAt": "2026-11-16T10:32:33.316Z",
+        "model": "claude-sonnet-5-5",
+        "diagnostics": {
+          "droppedRecommendations": [],
+          "budgetBand": {
+            "floorAed": 1800000,
+            "ceilingAed": 2100000,
+            "approximate": true
+          },
+          "searchSkipped": false,
+          "usage": {
+            "inputTokens": 10779,
+            "outputTokens": 1175,
+            "totalTokens": 11954
+          }
+        },
+        "dataWarnings": [
+          {
+            "propertyId": "473a131f-4f8c-52d5-88d5-88ac173f49ea",
+            "reference": "MBR-1001",
+            "flags": [
+              "possible_duplicate"
+            ]
+          },
+          {
+            "propertyId": "bcb641ba-26bb-5bbc-8672-ba7a3c2edbff",
+            "reference": "MBR-1022",
+            "flags": [
+              "rent_missing"
+            ]
+          },
+          {
+            "propertyId": "fd0bba47-47be-5eaa-8534-185b5cd796e8",
+            "reference": "MBR-1024",
+            "flags": [
+              "possible_duplicate"
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

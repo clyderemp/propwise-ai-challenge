@@ -1,0 +1,96 @@
+{
+  "case": "09-timezone-edge",
+  "title": "\"Tomorrow\" sent at 21:30 UTC is two UTC days later in Dubai",
+  "covers": "4",
+  "verdict": "PASS",
+  "assertions": [
+    {
+      "name": "Timezone edge: HTTP 201 and status completed",
+      "pass": true,
+      "gating": true,
+      "detail": "HTTP 201, status completed"
+    },
+    {
+      "name": "Timezone edge: exactly one proposed action, pending approval",
+      "pass": true,
+      "gating": true,
+      "detail": "got [\"pending_approval\"]"
+    },
+    {
+      "name": "dueAt is exactly 2026-10-18T10:00:00+04:00",
+      "pass": true,
+      "gating": true,
+      "detail": "\"2026-10-18T10:00:00+04:00\""
+    }
+  ],
+  "runs": [
+    {
+      "label": "Timezone edge",
+      "status": 201,
+      "latencyMs": 7250,
+      "run": {
+        "id": "cc6e4876-eed6-45e4-a685-324fea078175",
+        "leadId": "4ca6f9b7-d1d9-428f-a510-32290f63b1c8",
+        "messageId": "6b84a21b-a386-49e5-8a10-1f3337c1e583",
+        "status": "completed",
+        "requirements": {
+          "locations": [],
+          "bedrooms": null,
+          "budgetAed": {
+            "min": null,
+            "max": null
+          },
+          "propertyType": null,
+          "intent": "unknown",
+          "preferences": [],
+          "bedroomsRange": {
+            "min": null,
+            "max": null
+          },
+          "budgetIsApproximate": false,
+          "prioritiseYield": false
+        },
+        "recommendations": [],
+        "summary": "The lead asked only for a call tomorrow and gave no area, budget, property type or bedroom criteria, so no listings were searched and none are recommended. The message was sent 2026-10-16 21:30 UTC, which may already be 17 October in the UAE (UTC+4), so confirm which day 'tomorrow' means. There are no open tasks for this lead. Next step: call the lead and ask what they want to buy and their budget.",
+        "proposedActions": [
+          {
+            "id": "88065a56-6c4e-412a-8e41-a8b8df3baeef",
+            "type": "create_follow_up_task",
+            "status": "pending_approval",
+            "task": {
+              "title": "Call lead tomorrow to learn their property requirements",
+              "notes": "The lead asked for a call 'tomorrow' in a message sent 2026-10-16 21:30 UTC (about 01:30 on 17 Oct in UAE time). Confirm which day they mean and a good time to call. Ask about intent (buy or rent), area, budget, property type, bedrooms and whether rental yield matters. No listing codes yet.",
+              "dueAt": "2026-10-18T10:00:00+04:00"
+            },
+            "needsClarification": null,
+            "taskId": null
+          }
+        ],
+        "trace": [
+          {
+            "tool": "get_lead_tasks",
+            "input": {},
+            "output": {
+              "total": 0,
+              "items": []
+            },
+            "durationMs": 21
+          }
+        ],
+        "createdAt": "2026-11-16T10:32:59.345Z",
+        "model": "claude-sonnet-5-5",
+        "diagnostics": {
+          "droppedRecommendations": [],
+          "budgetBand": null,
+          "searchSkipped": true,
+          "usage": {
+            "inputTokens": 7712,
+            "outputTokens": 536,
+            "totalTokens": 8248
+          }
+        },
+        "dataWarnings": []
+      }
+    }
+  ]
+}

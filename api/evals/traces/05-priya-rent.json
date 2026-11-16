@@ -1,0 +1,104 @@
+{
+  "case": "05-priya-rent",
+  "title": "Rent enquiry against for-sale listings (Priya)",
+  "covers": "3",
+  "verdict": "PASS",
+  "assertions": [
+    {
+      "name": "Priya: HTTP 201 and status completed",
+      "pass": true,
+      "gating": true,
+      "detail": "HTTP 201, status completed"
+    },
+    {
+      "name": "intent is rent",
+      "pass": true,
+      "gating": true,
+      "detail": "\"rent\""
+    },
+    {
+      "name": "Priya: recommends nothing",
+      "pass": true,
+      "gating": true,
+      "detail": "got []"
+    }
+  ],
+  "runs": [
+    {
+      "label": "Priya",
+      "status": 201,
+      "latencyMs": 8225,
+      "run": {
+        "id": "82eb83d7-c895-424f-a4f7-4718ab0d4e6a",
+        "leadId": "4e9649a2-b0e3-5342-a303-87e4b5eba73f",
+        "messageId": "528b3bb0-1b9c-5a38-8d4a-ba3cc7c3968d",
+        "status": "completed",
+        "requirements": {
+          "locations": [
+            "Business Bay"
+          ],
+          "bedrooms": 2,
+          "budgetAed": {
+            "min": null,
+            "max": 120000
+          },
+          "propertyType": null,
+          "intent": "rent",
+          "preferences": [
+            "moving in next month"
+          ],
+          "bedroomsRange": {
+            "min": 2,
+            "max": 2
+          },
+          "budgetIsApproximate": true,
+          "prioritiseYield": false
+        },
+        "recommendations": [],
+        "summary": "Priya Nair wants to rent a 2-bed in Business Bay for about AED 120,000 a year and move in next month. All of the agency's listings are for sale, so I recommended nothing and did not search. She has no open follow-up tasks. The next step is to ask whether she would consider buying. If she wants to rent, she will need a rental source outside these listings.",
+        "proposedActions": [
+          {
+            "id": "4edde7f0-c86e-4de3-b146-1280efef4318",
+            "type": "create_follow_up_task",
+            "status": "pending_approval",
+            "task": {
+              "title": "Call Priya Nair about Business Bay 2BR rental request",
+              "notes": "Priya wants to rent a 2-bed in Business Bay for about AED 120k a year and move in next month. Our listings are for sale only. Ask whether she would consider buying, for example as an investment or to live in. If she wants to rent only, tell her we can't help directly, or refer her to a rentals team.",
+              "dueAt": null
+            },
+            "needsClarification": "The lead did not say when to follow up.",
+            "taskId": null
+          }
+        ],
+        "trace": [
+          {
+            "tool": "get_lead_tasks",
+            "input": {},
+            "output": {
+              "total": 0,
+              "items": []
+            },
+            "durationMs": 17
+          }
+        ],
+        "createdAt": "2026-11-16T10:32:47.210Z",
+        "model": "claude-sonnet-5-5",
+        "diagnostics": {
+          "droppedRecommendations": [],
+          "budgetBand": {
+            "floorAed": 108000,
+            "ceilingAed": 126000,
+            "approximate": true
+          },
+          "searchSkipped": false,
+          "usage": {
+            "inputTokens": 9710,
+            "outputTokens": 503,
+            "totalTokens": 10213
+          }
+        },
+        "dataWarnings": []
+      }
+    }
+  ]
+}

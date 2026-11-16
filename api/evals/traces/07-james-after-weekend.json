@@ -1,0 +1,212 @@
+{
+  "case": "07-james-after-weekend",
+  "title": "\"After the weekend\" and two areas (James)",
+  "covers": "1, 4",
+  "verdict": "PASS",
+  "assertions": [
+    {
+      "name": "James: HTTP 201 and status completed",
+      "pass": true,
+      "gating": true,
+      "detail": "HTTP 201, status completed"
+    },
+    {
+      "name": "James: exactly one proposed action, pending approval",
+      "pass": true,
+      "gating": true,
+      "detail": "got [\"pending_approval\"]"
+    },
+    {
+      "name": "dueAt is the first Monday after the sent date: 2026-11-16T10:00:00+04:00",
+      "pass": true,
+      "gating": true,
+      "detail": "\"2026-11-16T10:00:00+04:00\""
+    },
+    {
+      "name": "needsClarification is null",
+      "pass": true,
+      "gating": true,
+      "detail": "null"
+    },
+    {
+      "name": "James: recommendations within {MBR-1009}",
+      "pass": true,
+      "gating": true,
+      "detail": "got [MBR-1009]"
+    },
+    {
+      "name": "locations within {Dubai Marina, Jumeirah Lake Towers} and not empty",
+      "pass": true,
+      "gating": true,
+      "detail": "[\"Jumeirah Lake Towers\",\"Dubai Marina\"]"
+    },
+    {
+      "name": "bedrooms is 1",
+      "pass": true,
+      "gating": true,
+      "detail": "1"
+    },
+    {
+      "name": "James: MBR-1009 reason quotes only the computed gross yield",
+      "pass": true,
+      "gating": false,
+      "detail": "computed 7.24%, quoted [7.24]"
+    }
+  ],
+  "runs": [
+    {
+      "label": "James",
+      "status": 201,
+      "latencyMs": 12798,
+      "run": {
+        "id": "ea54bdf7-a482-43c3-beb8-21b112b52530",
+        "leadId": "ac364939-7391-5caa-90c7-6aefc6ee7908",
+        "messageId": "87cb28d2-3a64-58b2-96f5-d6358c5bf5db",
+        "status": "completed",
+        "requirements": {
+          "locations": [
+            "Jumeirah Lake Towers",
+            "Dubai Marina"
+          ],
+          "bedrooms": 1,
+          "budgetAed": {
+            "min": null,
+            "max": 1500000
+          },
+          "propertyType": null,
+          "intent": "buy",
+          "preferences": [],
+          "bedroomsRange": {
+            "min": 1,
+            "max": 1
+          },
+          "budgetIsApproximate": false,
+          "prioritiseYield": false
+        },
+        "recommendations": [
+          {
+            "propertyId": "515c90a2-ce40-5d85-bd03-51c05ca25f21",
+            "reason": "MBR-1009 is a 1-bed apartment in Marina Gate 2, Dubai Marina, asking AED 1,450,000 with a gross yield of 7.24% (estimated rent AED 105,000). It is available.",
+            "property": {
+              "reference": "MBR-1009",
+              "title": "1BR in Marina Gate 2",
+              "area": "Dubai Marina",
+              "building": "Marina Gate 2",
+              "type": "apartment",
+              "bedrooms": 1,
+              "sizeSqft": 850,
+              "priceAed": 1450000,
+              "annualRentAed": 105000,
+              "grossYieldPct": 7.24,
+              "status": "available",
+              "flags": []
+            }
+          }
+        ],
+        "summary": "James wants to buy a 1-bed in JLT or Dubai Marina for up to AED 1.5M. He found his previous viewing a bit small, and he asked for a call after the weekend. Only one listing fits: MBR-1009 in Dubai Marina. It is 850 sqft, so check that the size works for him, since he thought the last one was small. No 1-bed in JLT is available within budget. There are no data issues. The only existing task, sending the Marina Gate 2 floor plan, is done.",
+        "proposedActions": [
+          {
+            "id": "87cc6bec-ad61-4a58-984f-0b29061740d2",
+            "type": "create_follow_up_task",
+            "status": "pending_approval",
+            "task": {
+              "title": "Call James after the weekend about 1-bed options in Marina/JLT",
+              "notes": "James found the last property a bit small. Present MBR-1009 (Marina Gate 2, 1BR, 850 sqft, AED 1,450,000, 7.24% gross yield) and confirm the size suits him. Tell him there are currently no available 1-beds in JLT within AED 1.5M. Ask whether he would consider a slightly higher budget or other areas.",
+              "dueAt": "2026-11-16T10:00:00+04:00"
+            },
+            "needsClarification": null,
+            "taskId": null
+          }
+        ],
+        "trace": [
+          {
+            "tool": "search_listings",
+            "input": {
+              "area": "Jumeirah Lake Towers",
+              "propertyType": null,
+              "minBedrooms": 1,
+              "maxBedrooms": 1,
+              "minPriceAed": null,
+              "maxPriceAed": 1500000,
+              "status": "available",
+              "reference": null
+            },
+            "output": {
+              "total": 0,
+              "truncated": false,
+              "items": []
+            },
+            "durationMs": 20
+          },
+          {
+            "tool": "get_lead_tasks",
+            "input": {},
+            "output": {
+              "total": 1,
+              "items": [
+                {
+                  "title": "Send James the Marina Gate 2 floor plan",
+                  "status": "done",
+                  "dueAt": "2026-11-14T11:52:27.751Z"
+                }
+              ]
+            },
+            "durationMs": 18
+          },
+          {
+            "tool": "search_listings",
+            "input": {
+              "area": "Dubai Marina",
+              "propertyType": null,
+              "minBedrooms": 1,
+              "maxBedrooms": 1,
+              "minPriceAed": null,
+              "maxPriceAed": 1500000,
+              "status": "available",
+              "reference": null
+            },
+            "output": {
+              "total": 1,
+              "truncated": false,
+              "items": [
+                {
+                  "id": "515c90a2-ce40-5d85-bd03-51c05ca25f21",
+                  "reference": "MBR-1009",
+                  "title": "1BR in Marina Gate 2",
+                  "area": "Dubai Marina",
+                  "building": "Marina Gate 2",
+                  "type": "apartment",
+                  "bedrooms": 1,
+                  "sizeSqft": 850,
+                  "priceAed": 1450000,
+                  "annualRentAed": 105000,
+                  "grossYieldPct": 7.24,
+                  "status": "available",
+                  "flags": []
+                }
+              ]
+            },
+            "durationMs": 21
+          }
+        ],
+        "createdAt": "2026-11-16T10:32:52.132Z",
+        "model": "claude-sonnet-5-5",
+        "diagnostics": {
+          "droppedRecommendations": [],
+          "budgetBand": {
+            "floorAed": null,
+            "ceilingAed": 1500000,
+            "approximate": false
+          },
+          "searchSkipped": false,
+          "usage": {
+            "inputTokens": 10645,
+            "outputTokens": 1164,
+            "totalTokens": 11809
+          }
+        },
+        "dataWarnings": []
+      }
+    }
+  ]
+}

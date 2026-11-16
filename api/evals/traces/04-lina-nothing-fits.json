@@ -1,0 +1,139 @@
+{
+  "case": "04-lina-nothing-fits",
+  "title": "Nothing fits (Lina: 5BR villa in the Marina under 900k)",
+  "covers": "3",
+  "verdict": "PASS",
+  "assertions": [
+    {
+      "name": "Lina: HTTP 201 and status completed",
+      "pass": true,
+      "gating": true,
+      "detail": "HTTP 201, status completed"
+    },
+    {
+      "name": "Lina: recommends nothing",
+      "pass": true,
+      "gating": true,
+      "detail": "got []"
+    },
+    {
+      "name": "bedrooms is 5",
+      "pass": true,
+      "gating": true,
+      "detail": "5"
+    },
+    {
+      "name": "propertyType is villa",
+      "pass": true,
+      "gating": true,
+      "detail": "\"villa\""
+    },
+    {
+      "name": "budgetAed.max is 900,000",
+      "pass": true,
+      "gating": true,
+      "detail": "{\"min\":null,\"max\":900000}"
+    },
+    {
+      "name": "a successful empty search is not reported as a failure",
+      "pass": true,
+      "gating": true,
+      "detail": "[\"search_listings\",\"get_lead_tasks\"]"
+    }
+  ],
+  "runs": [
+    {
+      "label": "Lina",
+      "status": 201,
+      "latencyMs": 8073,
+      "run": {
+        "id": "3c6bcbca-ac05-4789-9335-9464b0951094",
+        "leadId": "0bab04e6-d42d-521e-aa18-d256456a6b69",
+        "messageId": "6fd52efc-4a8a-5dc8-b6d5-fa1f85a045db",
+        "status": "completed",
+        "requirements": {
+          "locations": [
+            "Dubai Marina"
+          ],
+          "bedrooms": 5,
+          "budgetAed": {
+            "min": null,
+            "max": 900000
+          },
+          "propertyType": "villa",
+          "intent": "buy",
+          "preferences": [],
+          "bedroomsRange": {
+            "min": 5,
+            "max": 5
+          },
+          "budgetIsApproximate": false,
+          "prioritiseYield": false
+        },
+        "recommendations": [],
+        "summary": "Lina wants to buy a 5-bedroom villa in Dubai Marina for up to AED 900,000 and says she is ready to buy this week. The search returned no available listings that match. The budget looks low for a villa of that size in this area. Next step is to call her, check how firm the budget and area are, and discuss alternatives.",
+        "proposedActions": [
+          {
+            "id": "c28e7546-0cfc-4b21-af27-2d147557b560",
+            "type": "create_follow_up_task",
+            "status": "pending_approval",
+            "task": {
+              "title": "Call Lina Haddad about 5BR Dubai Marina villa budget",
+              "notes": "No available 5-bedroom villas in Dubai Marina under AED 900,000 were found. Ask whether she can raise her budget, consider other areas or a smaller unit, and confirm her purchase timeline and financing.",
+              "dueAt": null
+            },
+            "needsClarification": "\"this week\" does not specify a single day",
+            "taskId": null
+          }
+        ],
+        "trace": [
+          {
+            "tool": "search_listings",
+            "input": {
+              "area": "Dubai Marina",
+              "propertyType": "villa",
+              "minBedrooms": 5,
+              "maxBedrooms": 5,
+              "minPriceAed": null,
+              "maxPriceAed": 900000,
+              "status": "available",
+              "reference": null
+            },
+            "output": {
+              "total": 0,
+              "truncated": false,
+              "items": []
+            },
+            "durationMs": 22
+          },
+          {
+            "tool": "get_lead_tasks",
+            "input": {},
+            "output": {
+              "total": 0,
+              "items": []
+            },
+            "durationMs": 19
+          }
+        ],
+        "createdAt": "2026-11-16T10:32:44.056Z",
+        "model": "claude-sonnet-5-5",
+        "diagnostics": {
+          "droppedRecommendations": [],
+          "budgetBand": {
+            "floorAed": null,
+            "ceilingAed": 900000,
+            "approximate": false
+          },
+          "searchSkipped": false,
+          "usage": {
+            "inputTokens": 10015,
+            "outputTokens": 709,
+            "totalTokens": 10724
+          }
+        },
+        "dataWarnings": []
+      }
+    }
+  ]
+}

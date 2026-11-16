@@ -1,0 +1,108 @@
+{
+  "case": "08-unclear-date",
+  "title": "Unclear follow-up timing",
+  "covers": "4",
+  "verdict": "PASS",
+  "assertions": [
+    {
+      "name": "Unclear timing: HTTP 201 and status completed",
+      "pass": true,
+      "gating": true,
+      "detail": "HTTP 201, status completed"
+    },
+    {
+      "name": "Unclear timing: exactly one proposed action, pending approval",
+      "pass": true,
+      "gating": true,
+      "detail": "got [\"pending_approval\"]"
+    },
+    {
+      "name": "dueAt is null (no guess)",
+      "pass": true,
+      "gating": true,
+      "detail": "null"
+    },
+    {
+      "name": "needsClarification explains why",
+      "pass": true,
+      "gating": true,
+      "detail": "\"The lead gave no specific day or time, only that the agent should reach out whenever convenient.\""
+    },
+    {
+      "name": "Unclear timing: recommends nothing",
+      "pass": true,
+      "gating": true,
+      "detail": "got []"
+    }
+  ],
+  "runs": [
+    {
+      "label": "Unclear timing",
+      "status": 201,
+      "latencyMs": 8564,
+      "run": {
+        "id": "d556906f-b72f-4eb8-84f7-fce600d79541",
+        "leadId": "f22c660d-54aa-47b0-b1ec-2f91f5fdf07a",
+        "messageId": "cfa37fb3-2aed-469f-bfcb-c55cfce60a11",
+        "status": "completed",
+        "requirements": {
+          "locations": [],
+          "bedrooms": null,
+          "budgetAed": {
+            "min": null,
+            "max": null
+          },
+          "propertyType": null,
+          "intent": "unknown",
+          "preferences": [],
+          "bedroomsRange": {
+            "min": null,
+            "max": null
+          },
+          "budgetIsApproximate": false,
+          "prioritiseYield": false
+        },
+        "recommendations": [],
+        "summary": "The lead only asked for a call 'sometime when you get a chance'. They gave no area, budget, bedrooms, property type or buying intent, so no listings were searched and none are recommended. There are no open tasks for this lead. The next step is a call to find out what they want and when suits them.",
+        "proposedActions": [
+          {
+            "id": "82275b49-d400-415f-a956-4a9113563336",
+            "type": "create_follow_up_task",
+            "status": "pending_approval",
+            "task": {
+              "title": "Call lead to ask what they're looking for and when suits",
+              "notes": "The lead asked for a call but gave no timing and no criteria. Ask whether they want to buy or rent, and cover preferred areas, budget, bedrooms and property type. Also ask when they would like to be contacted. Their message was sent 2026-10-14. There were no existing open tasks.",
+              "dueAt": null
+            },
+            "needsClarification": "The lead gave no specific day or time, only that the agent should reach out whenever convenient.",
+            "taskId": null
+          }
+        ],
+        "trace": [
+          {
+            "tool": "get_lead_tasks",
+            "input": {},
+            "output": {
+              "total": 0,
+              "items": []
+            },
+            "durationMs": 23
+          }
+        ],
+        "createdAt": "2026-11-16T10:32:55.470Z",
+        "model": "claude-sonnet-5-5",
+        "diagnostics": {
+          "droppedRecommendations": [],
+          "budgetBand": null,
+          "searchSkipped": true,
+          "usage": {
+            "inputTokens": 7730,
+            "outputTokens": 494,
+            "totalTokens": 8224
+          }
+        },
+        "dataWarnings": []
+      }
+    }
+  ]
+}

@@ -1,0 +1,192 @@
+{
+  "case": "06-yousef-latest-message",
+  "title": "Latest message wins, \"same area\" from the thread (Yousef)",
+  "covers": "1, 2",
+  "verdict": "PASS",
+  "assertions": [
+    {
+      "name": "Yousef: HTTP 201 and status completed",
+      "pass": true,
+      "gating": true,
+      "detail": "HTTP 201, status completed"
+    },
+    {
+      "name": "analyses the third (latest inbound) message",
+      "pass": true,
+      "gating": true,
+      "detail": "66ecee80-b236-5bcc-8536-e00e18aaaca6"
+    },
+    {
+      "name": "bedrooms is 3 (changed from 2)",
+      "pass": true,
+      "gating": true,
+      "detail": "3"
+    },
+    {
+      "name": "budgetAed.max is 4,000,000",
+      "pass": true,
+      "gating": true,
+      "detail": "{\"min\":null,\"max\":4000000}"
+    },
+    {
+      "name": "locations includes Dubai Marina (\"same area\")",
+      "pass": true,
+      "gating": true,
+      "detail": "[\"Dubai Marina\"]"
+    },
+    {
+      "name": "Yousef: recommendations within {MBR-1011}",
+      "pass": true,
+      "gating": true,
+      "detail": "got [MBR-1011]"
+    },
+    {
+      "name": "Yousef: exactly one proposed action, pending approval",
+      "pass": true,
+      "gating": true,
+      "detail": "got [\"pending_approval\"]"
+    },
+    {
+      "name": "dueAt is tomorrow: 2026-11-17T10:00:00+04:00",
+      "pass": true,
+      "gating": true,
+      "detail": "\"2026-11-17T10:00:00+04:00\""
+    },
+    {
+      "name": "Yousef: MBR-1011 reason quotes only the computed gross yield",
+      "pass": true,
+      "gating": false,
+      "detail": "computed 6.11%, quoted [6.11]"
+    }
+  ],
+  "runs": [
+    {
+      "label": "Yousef",
+      "status": 201,
+      "latencyMs": 9077,
+      "run": {
+        "id": "25af436d-ff5f-4e49-9b99-c6fbc1349a44",
+        "leadId": "651d2943-9f72-5cec-979f-58bf69380af8",
+        "messageId": "66ecee80-b236-5bcc-8536-e00e18aaaca6",
+        "status": "completed",
+        "requirements": {
+          "locations": [
+            "Dubai Marina"
+          ],
+          "bedrooms": 3,
+          "budgetAed": {
+            "min": null,
+            "max": 4000000
+          },
+          "propertyType": "apartment",
+          "intent": "buy",
+          "preferences": [],
+          "bedroomsRange": {
+            "min": 3,
+            "max": 3
+          },
+          "budgetIsApproximate": false,
+          "prioritiseYield": false
+        },
+        "recommendations": [
+          {
+            "propertyId": "44bc22be-e2ec-590c-b32a-16b1894881f5",
+            "reason": "MBR-1011 is a 3-bedroom apartment in Marina Gate 1, Dubai Marina, asking AED 3,600,000, which is within the AED 4M budget. Gross yield is 6.11% and it is available.",
+            "property": {
+              "reference": "MBR-1011",
+              "title": "3BR family apartment in Marina Gate 1",
+              "area": "Dubai Marina",
+              "building": "Marina Gate 1",
+              "type": "apartment",
+              "bedrooms": 3,
+              "sizeSqft": 1900,
+              "priceAed": 3600000,
+              "annualRentAed": 220000,
+              "grossYieldPct": 6.11,
+              "status": "available",
+              "flags": []
+            }
+          }
+        ],
+        "summary": "Yousef now needs a 3-bedroom apartment to buy in Dubai Marina, up to AED 4M, because his parents are moving in with the family. One available listing fits: MBR-1011 in Marina Gate 1 at AED 3.6M. It has no data flags. He asked for a call tomorrow, and there are no open tasks for him.",
+        "proposedActions": [
+          {
+            "id": "5cf99bbe-c435-48fa-8a7f-bb930dc0a9e1",
+            "type": "create_follow_up_task",
+            "status": "pending_approval",
+            "task": {
+              "title": "Call Yousef Darwish about Dubai Marina 3BR options",
+              "notes": "Yousef asked for a call tomorrow. His plans changed because his parents are moving in, so he now needs 3 bedrooms, with a budget up to AED 4M in Dubai Marina. Present MBR-1011 (Marina Gate 1, AED 3.6M, 6.11% gross yield, available). Ask about his flexibility on budget and building, and whether he wants to arrange a viewing.",
+              "dueAt": "2026-11-17T10:00:00+04:00"
+            },
+            "needsClarification": null,
+            "taskId": null
+          }
+        ],
+        "trace": [
+          {
+            "tool": "search_listings",
+            "input": {
+              "area": "Dubai Marina",
+              "propertyType": "apartment",
+              "minBedrooms": 3,
+              "maxBedrooms": 3,
+              "minPriceAed": null,
+              "maxPriceAed": 4000000,
+              "status": "available",
+              "reference": null
+            },
+            "output": {
+              "total": 1,
+              "truncated": false,
+              "items": [
+                {
+                  "id": "44bc22be-e2ec-590c-b32a-16b1894881f5",
+                  "reference": "MBR-1011",
+                  "title": "3BR family apartment in Marina Gate 1",
+                  "area": "Dubai Marina",
+                  "building": "Marina Gate 1",
+                  "type": "apartment",
+                  "bedrooms": 3,
+                  "sizeSqft": 1900,
+                  "priceAed": 3600000,
+                  "annualRentAed": 220000,
+                  "grossYieldPct": 6.11,
+                  "status": "available",
+                  "flags": []
+                }
+              ]
+            },
+            "durationMs": 14
+          },
+          {
+            "tool": "get_lead_tasks",
+            "input": {},
+            "output": {
+              "total": 0,
+              "items": []
+            },
+            "durationMs": 13
+          }
+        ],
+        "createdAt": "2026-11-16T10:32:47.576Z",
+        "model": "claude-sonnet-5-5",
+        "diagnostics": {
+          "droppedRecommendations": [],
+          "budgetBand": {
+            "floorAed": null,
+            "ceilingAed": 4000000,
+            "approximate": false
+          },
+          "searchSkipped": false,
+          "usage": {
+            "inputTokens": 10367,
+            "outputTokens": 888,
+            "totalTokens": 11255
+          }
+        },
+        "dataWarnings": []
+      }
+    }
+  ]
+}

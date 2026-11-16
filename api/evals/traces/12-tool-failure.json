@@ -1,0 +1,122 @@
+{
+  "case": "12-tool-failure",
+  "title": "search_listings fails: the run fails, never \"nothing found\"",
+  "covers": "6",
+  "verdict": "PASS",
+  "assertions": [
+    {
+      "name": "HTTP 201",
+      "pass": true,
+      "gating": true,
+      "detail": "HTTP 201"
+    },
+    {
+      "name": "status is failed",
+      "pass": true,
+      "gating": true,
+      "detail": "\"failed\""
+    },
+    {
+      "name": "error names the failing tool",
+      "pass": true,
+      "gating": true,
+      "detail": "\"Tool search_listings failed: Injected fault: search_listings is unavailable.\""
+    },
+    {
+      "name": "exact empty shape: requirements, recommendations, proposedActions",
+      "pass": true,
+      "gating": true,
+      "detail": "{\"requirements\":{\"locations\":[],\"bedrooms\":null,\"budgetAed\":{\"min\":null,\"max\":null},\"propertyType\":null,\"intent\":\"unknown\",\"preferences\":[]},\"recs\":0,\"actions\":0}"
+    },
+    {
+      "name": "the trace keeps the failed search_listings call with its error and no output",
+      "pass": true,
+      "gating": true,
+      "detail": "[[\"search_listings\",\"error\"],[\"get_lead_tasks\",\"output\"]]"
+    },
+    {
+      "name": "Karim with search_listings failing: every trace entry has a tool, a duration and exactly one of output or error",
+      "pass": true,
+      "gating": true,
+      "detail": "2 entries"
+    },
+    {
+      "name": "GET returns the same failed run",
+      "pass": true,
+      "gating": true
+    }
+  ],
+  "runs": [
+    {
+      "label": "Karim with search_listings failing",
+      "status": 201,
+      "latencyMs": 4602,
+      "run": {
+        "id": "14b7c5b7-bdf3-480b-982e-652f7073315d",
+        "leadId": "310661c8-6de3-5b3f-80c8-ca4ef71e55b1",
+        "messageId": "536370e0-95b4-539e-943b-4a67509c0bea",
+        "status": "failed",
+        "error": "Tool search_listings failed: Injected fault: search_listings is unavailable.",
+        "requirements": {
+          "locations": [],
+          "bedrooms": null,
+          "budgetAed": {
+            "min": null,
+            "max": null
+          },
+          "propertyType": null,
+          "intent": "unknown",
+          "preferences": []
+        },
+        "recommendations": [],
+        "summary": "",
+        "proposedActions": [],
+        "trace": [
+          {
+            "tool": "search_listings",
+            "input": {
+              "area": "Dubai Marina",
+              "propertyType": "apartment",
+              "minBedrooms": 2,
+              "maxBedrooms": 2,
+              "minPriceAed": 1800000,
+              "maxPriceAed": 2100000,
+              "status": "available",
+              "reference": null
+            },
+            "error": "Injected fault: search_listings is unavailable.",
+            "durationMs": 3
+          },
+          {
+            "tool": "get_lead_tasks",
+            "input": {},
+            "output": {
+              "total": 1,
+              "items": [
+                {
+                  "title": "Call Karim about Dubai Marina 2BR options",
+                  "status": "open",
+                  "dueAt": "2026-11-17T06:00:00.000Z"
+                }
+              ]
+            },
+            "durationMs": 154
+          }
+        ],
+        "createdAt": "2026-11-16T10:33:26.199Z",
+        "model": "claude-sonnet-5-5",
+        "diagnostics": {
+          "droppedRecommendations": [],
+          "budgetBand": null,
+          "searchSkipped": false,
+          "usage": {
+            "inputTokens": 6642,
+            "outputTokens": 481,
+            "totalTokens": 7123
+          }
+        },
+        "dataWarnings": []
+      }
+    }
+  ]
+}

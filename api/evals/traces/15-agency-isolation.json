@@ -1,0 +1,192 @@
+{
+  "case": "15-agency-isolation",
+  "title": "Agency isolation (Nadia at Desert Key)",
+  "covers": "rule 2",
+  "verdict": "PASS",
+  "assertions": [
+    {
+      "name": "Nadia as Omar: HTTP 201 and status completed",
+      "pass": true,
+      "gating": true,
+      "detail": "HTTP 201, status completed"
+    },
+    {
+      "name": "recommends at least one listing",
+      "pass": true,
+      "gating": true,
+      "detail": "[DKP-2001]"
+    },
+    {
+      "name": "Nadia as Omar: recommendations within {DKP-2001, DKP-2002}",
+      "pass": true,
+      "gating": true,
+      "detail": "got [DKP-2001]"
+    },
+    {
+      "name": "no Marina Bay listing anywhere in the trace outputs",
+      "pass": true,
+      "gating": true,
+      "detail": "[\"get_lead_tasks\",\"search_listings\"]"
+    },
+    {
+      "name": "Nadia as Omar: DKP-2001 reason quotes only the computed gross yield",
+      "pass": true,
+      "gating": false,
+      "detail": "computed 7.58%, quoted [7.58]"
+    },
+    {
+      "name": "Sara: POST a run on Nadia is 404",
+      "pass": true,
+      "gating": true,
+      "detail": "HTTP 404"
+    },
+    {
+      "name": "Sara: GET Omar's run is 404",
+      "pass": true,
+      "gating": true,
+      "detail": "HTTP 404"
+    },
+    {
+      "name": "Sara: GET Omar's run under her own lead's URL is 404",
+      "pass": true,
+      "gating": true,
+      "detail": "HTTP 404"
+    },
+    {
+      "name": "Sara: approving Omar's action is 404",
+      "pass": true,
+      "gating": true,
+      "detail": "HTTP 404"
+    }
+  ],
+  "runs": [
+    {
+      "label": "Nadia as Omar",
+      "status": 201,
+      "latencyMs": 7736,
+      "run": {
+        "id": "39097f5d-ac85-42b9-93d4-123181a59cb2",
+        "leadId": "78f4733d-3f7d-523d-9e80-afde5280f5db",
+        "messageId": "4d644d3e-77ce-501f-8367-ceb6acdfee87",
+        "status": "completed",
+        "requirements": {
+          "locations": [
+            "Dubai Marina"
+          ],
+          "bedrooms": 2,
+          "budgetAed": {
+            "min": null,
+            "max": 2000000
+          },
+          "propertyType": null,
+          "intent": "unknown",
+          "preferences": [],
+          "bedroomsRange": {
+            "min": 2,
+            "max": 2
+          },
+          "budgetIsApproximate": false,
+          "prioritiseYield": false
+        },
+        "recommendations": [
+          {
+            "propertyId": "c59d90ac-dbc5-5216-a9df-7799babf91b3",
+            "reason": "DKP-2001 is a 2-bedroom apartment in Marina Quays East, Dubai Marina, asking AED 1,980,000, which is within the AED 2M budget. Gross yield is 7.58% and it is available.",
+            "property": {
+              "reference": "DKP-2001",
+              "title": "2BR in Marina Quays East",
+              "area": "Dubai Marina",
+              "building": "Marina Quays East",
+              "type": "apartment",
+              "bedrooms": 2,
+              "sizeSqft": 1280,
+              "priceAed": 1980000,
+              "annualRentAed": 150000,
+              "grossYieldPct": 7.58,
+              "status": "available",
+              "flags": []
+            }
+          }
+        ],
+        "summary": "Nadia wants a 2-bedroom in Dubai Marina with a budget of up to AED 2M. Her intent (buy or rent) isn't stated. Only one available listing fits: DKP-2001, at AED 1,980,000 with a 7.58% gross yield. It has no data flags. She asked for a follow-up tomorrow, and no open tasks exist for her.",
+        "proposedActions": [
+          {
+            "id": "9be7393e-0f27-4a46-82cd-f6e4dddaa654",
+            "type": "create_follow_up_task",
+            "status": "pending_approval",
+            "task": {
+              "title": "Call Nadia Rahman about Dubai Marina 2BR options",
+              "notes": "Nadia asked for a follow-up tomorrow. Present DKP-2001 (2BR, Marina Quays East, AED 1,980,000, 7.58% gross yield, available). Confirm whether she wants to buy or rent (these listings are for sale), and check if her budget is flexible or if she wants more options.",
+              "dueAt": "2026-11-17T10:00:00+04:00"
+            },
+            "needsClarification": null,
+            "taskId": null
+          }
+        ],
+        "trace": [
+          {
+            "tool": "get_lead_tasks",
+            "input": {},
+            "output": {
+              "total": 0,
+              "items": []
+            },
+            "durationMs": 14
+          },
+          {
+            "tool": "search_listings",
+            "input": {
+              "area": "Dubai Marina",
+              "propertyType": null,
+              "minBedrooms": 2,
+              "maxBedrooms": 2,
+              "minPriceAed": null,
+              "maxPriceAed": 2000000,
+              "status": "available",
+              "reference": null
+            },
+            "output": {
+              "total": 1,
+              "truncated": false,
+              "items": [
+                {
+                  "id": "c59d90ac-dbc5-5216-a9df-7799babf91b3",
+                  "reference": "DKP-2001",
+                  "title": "2BR in Marina Quays East",
+                  "area": "Dubai Marina",
+                  "building": "Marina Quays East",
+                  "type": "apartment",
+                  "bedrooms": 2,
+                  "sizeSqft": 1280,
+                  "priceAed": 1980000,
+                  "annualRentAed": 150000,
+                  "grossYieldPct": 7.58,
+                  "status": "available",
+                  "flags": []
+                }
+              ]
+            },
+            "durationMs": 17
+          }
+        ],
+        "createdAt": "2026-11-16T10:33:15.423Z",
+        "model": "claude-sonnet-5-5",
+        "diagnostics": {
+          "droppedRecommendations": [],
+          "budgetBand": {
+            "floorAed": null,
+            "ceilingAed": 2000000,
+            "approximate": false
+          },
+          "searchSkipped": false,
+          "usage": {
+            "inputTokens": 10127,
+            "outputTokens": 867,
+            "totalTokens": 10994
+          }
+        },
+        "dataWarnings": []
+      }
+    }
+  ]
+}
