@@ -17,7 +17,8 @@
     "db:migrate": "tsx src/db/migrate.ts",
     "db:seed": "tsx src/db/seed-cli.ts",
     "db:reset": "tsx src/db/reset.ts",
-    "db:migration:create": "tsx src/db/create-migration.ts"
+    "db:migration:create": "tsx src/db/create-migration.ts",
+    "eval": "jest --config evals/jest-eval.json --runInBand"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "3.0.131",
@@ -57,7 +58,7 @@
       "json",
       "ts"
     ],
-    "rootDir": "src",
+    "rootDir": ".",
     "testRegex": ".*\\.spec\\.ts$",
     "transform": {
       "^.+\\.ts$": "ts-jest"
@@ -66,6 +67,10 @@
     "testPathIgnorePatterns": [
       "/node_modules/",
       "/\\._"
+    ],
+    "roots": [
+      "<rootDir>/src",
+      "<rootDir>/evals"
     ]
   },
   "pnpm": {

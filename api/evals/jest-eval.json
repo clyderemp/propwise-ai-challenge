@@ -1,0 +1,12 @@
+{
+  "moduleFileExtensions": ["js", "json", "ts"],
+  "rootDir": "..",
+  "testRegex": "evals/.*\\.eval\\.ts$",
+  "transform": {
+    "^.+\\.ts$": "ts-jest"
+  },
+  "testEnvironment": "node",
+  "setupFiles": ["<rootDir>/evals/setup-env.ts"],
+  "testTimeout": 900000,
+  "testPathIgnorePatterns": ["/node_modules/", "/\\._"]
+}
