@@ -274,6 +274,16 @@ describe('AI assistant API (scripted agent)', () => {
       expect(fetched.body).toEqual(run);
     });
 
+    it('records the model and the tokens spent before a failure', async () => {
+      const leadId = await newLead(sara, 'Failure accounting', [{ direction: 'inbound', body: '2-bedroom apartment in Dubai Marina [fake:fail-tool]' }]);
+      const run = await startRun(sara, leadId);
+      expect(run.status).toBe('failed');
+      expect(run.model).toBe('fake-scripted');
+      expect(run.diagnostics.usage).toEqual({ inputTokens: 500, outputTokens: 50, totalTokens: 550 });
+      const fetched = await http().get(`${runsPath(leadId)}/${run.id}`).set(bearer(sara)).expect(200);
+      expect(fetched.body).toEqual(run);
+    });
+
     it('keeps the partial trace of a failed tool call, with its error', async () => {
       const leadId = await newLead(sara, 'Tool trace', [{ direction: 'inbound', body: '2-bedroom apartment in Dubai Marina [fake:fail-tool]' }]);
       const run = await startRun(sara, leadId);

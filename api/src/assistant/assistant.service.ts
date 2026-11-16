@@ -139,6 +139,10 @@ export class AssistantService implements OnApplicationBootstrap {
       run.requirements = emptyRequirements();
       run.recommendations = [];
       run.trace = longest(agentTrace, recorded);
+      run.model = this.agent.modelId ?? null;
+      if (error instanceof AgentRunError && error.usage) {
+        run.diagnostics = { droppedRecommendations: [], budgetBand: null, searchSkipped: false, usage: error.usage };
+      }
       run.finishedAt = new Date();
       actions = [];
       await this.em.flush();

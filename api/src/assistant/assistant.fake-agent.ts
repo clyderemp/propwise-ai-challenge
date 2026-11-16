@@ -36,6 +36,8 @@ export const FAKE_AGENT_MODEL = 'fake-scripted';
  */
 @Injectable()
 export class FakeAssistantAgent implements AgentPort {
+  readonly modelId = FAKE_AGENT_MODEL;
+
   constructor(private readonly em: EntityManager) {}
 
   async run(ctx: AgentRunContext): Promise<AgentOutcome> {
@@ -72,7 +74,7 @@ export class FakeAssistantAgent implements AgentPort {
       if (body.includes('[fake:fail-tool]')) {
         const error = 'Scripted database failure.';
         await record({ tool: 'search_listings', input, error, durationMs: Date.now() - started });
-        throw new AgentRunError('tool', `Tool search_listings failed: ${error}`, trace);
+        throw new AgentRunError('tool', `Tool search_listings failed: ${error}`, trace, { inputTokens: 500, outputTokens: 50, totalTokens: 550 });
       }
       const rows = await em.find(
         Property,

@@ -304,6 +304,8 @@ export interface AgentOutcome {
 }
 
 export interface AgentPort {
+  /** The model this agent runs, recorded on failed runs too. */
+  readonly modelId?: string;
   /** Resolves with an outcome, or rejects with AgentRunError (or any Error) on model/tool failure. */
   run(ctx: AgentRunContext): Promise<AgentOutcome>;
 }
@@ -314,11 +316,14 @@ export type AgentFailureKind = 'model' | 'tool' | 'timeout' | 'invalid_output';
 export class AgentRunError extends Error {
   readonly kind: AgentFailureKind;
   readonly trace: TraceEntry[];
+  /** Model tokens spent before the failure, when known. */
+  readonly usage?: TokenUsage;
 
-  constructor(kind: AgentFailureKind, message: string, trace: TraceEntry[] = []) {
+  constructor(kind: AgentFailureKind, message: string, trace: TraceEntry[] = [], usage?: TokenUsage) {
     super(message);
     this.name = 'AgentRunError';
     this.kind = kind;
     this.trace = trace;
+    if (usage) this.usage = usage;
   }
 }

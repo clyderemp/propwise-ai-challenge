@@ -59,6 +59,10 @@ export class ClaudeAssistantAgent implements AgentPort {
     };
   }
 
+  get modelId(): string {
+    return this.gateway.modelId;
+  }
+
   run(ctx: AgentRunContext): Promise<ClaudeAgentOutcome> {
     return runAssistantAgent(ctx, { data: this.data, gateway: this.gateway, faults: this.faults });
   }

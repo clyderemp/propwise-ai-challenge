@@ -133,6 +133,7 @@ class RunState {
   constructor(
     readonly limits: RunLimits,
     readonly recorder: ToolRecorder,
+    readonly usage: AgentUsage,
     external?: AbortSignal,
   ) {
     this.deadline = AbortSignal.timeout(limits.runTimeoutMs);
@@ -140,14 +141,14 @@ class RunState {
   }
 
   fail(kind: AgentFailureKind, message: string): AgentRunError {
-    return new AgentRunError(kind, message, [...this.recorder.trace]);
+    return new AgentRunError(kind, message, [...this.recorder.trace], { ...this.usage });
   }
 
   /** Maps anything thrown by a phase to an AgentRunError carrying the trace so far. */
   toRunError(error: unknown): AgentRunError {
     const { recorder } = this;
     if (recorder.failure) return this.fail('tool', `Tool ${recorder.failure.tool} failed: ${recorder.failure.message}`);
-    if (error instanceof AgentRunError) return new AgentRunError(error.kind, error.message, [...recorder.trace]);
+    if (error instanceof AgentRunError) return this.fail(error.kind, error.message);
     if (error instanceof ToolFailure) return this.fail('tool', `Tool ${error.tool} failed: ${error.message}`);
     if (this.deadline.aborted) return this.fail('timeout', `The assistant timed out after ${Math.round(this.limits.runTimeoutMs / 1000)} seconds.`);
     if (this.signal.aborted) return this.fail('timeout', 'The assistant run was cancelled.');
@@ -186,8 +187,8 @@ async function recordRejectedCalls(step: StepResult<ToolSet>, recorder: ToolReco
 export async function runAssistantAgent(ctx: AgentRunContext, deps: RunAgentDeps): Promise<ClaudeAgentOutcome> {
   const limits: RunLimits = { ...DEFAULT_LIMITS, ...deps.limits };
   const recorder = new ToolRecorder(ctx.trace);
-  const state = new RunState(limits, recorder, ctx.signal);
   const usage: AgentUsage = { inputTokens: 0, outputTokens: 0, totalTokens: 0 };
+  const state = new RunState(limits, recorder, usage, ctx.signal);
   const common = { maxRetries: limits.maxRetries, abortSignal: state.signal, timeout: { stepMs: limits.stepTimeoutMs } };
 
   const model: LanguageModel = await state.phase(async () => deps.gateway.languageModel());

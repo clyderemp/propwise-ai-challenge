@@ -204,6 +204,7 @@ describe('runAssistantAgent', () => {
     expect(t.model.calls).toHaveLength(2);
     expect(t.model.remainingSteps).toBe(1);
     expect(t.sunk).toEqual(error.trace);
+    expect(error.usage?.totalTokens).toBeGreaterThan(0); // tokens spent before the failure are still reported
   });
 
   it('fails the same way when the fault injector is armed for a tool', async () => {
