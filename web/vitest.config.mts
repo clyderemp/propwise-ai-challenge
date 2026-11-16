@@ -11,5 +11,7 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: ['./vitest.setup.ts'],
+    // macOS writes AppleDouble '._*' files on non-APFS volumes; they are not tests.
+    exclude: ['**/node_modules/**', '**/._*'],
   },
 });

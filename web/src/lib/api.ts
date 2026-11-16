@@ -73,6 +73,85 @@ export interface Task {
   createdAt: string;
 }
 
+// AI assistant: mirrors TASK.md's contract plus the API's optional extra fields
+// (api/src/assistant/assistant.types.ts). Extras are optional so the panel works without them.
+
+export type AssistantPropertyType = 'apartment' | 'villa' | 'townhouse' | 'penthouse';
+export type ListingFlag = 'rent_missing' | 'price_suspect' | 'possible_duplicate' | 'instruction_like_text';
+
+export interface AssistantRequirements {
+  locations: string[];
+  /** 0 = studio. */
+  bedrooms: number | null;
+  budgetAed: { min: number | null; max: number | null };
+  propertyType: AssistantPropertyType | null;
+  intent: 'buy' | 'rent' | 'unknown';
+  preferences: string[];
+  bedroomsRange?: { min: number | null; max: number | null };
+  budgetIsApproximate?: boolean;
+  prioritiseYield?: boolean;
+}
+
+export interface PropertySnapshot {
+  reference: string;
+  title: string;
+  area: string;
+  building: string | null;
+  type: AssistantPropertyType;
+  bedrooms: number;
+  sizeSqft: number;
+  priceAed: number;
+  annualRentAed: number | null;
+  grossYieldPct: number | null;
+  status: 'available' | 'reserved' | 'sold';
+  flags: ListingFlag[];
+}
+
+export interface Recommendation {
+  propertyId: string;
+  reason: string;
+  property?: PropertySnapshot;
+}
+
+export interface ProposedAction {
+  id: string;
+  type: 'create_follow_up_task';
+  status: 'pending_approval' | 'approved' | 'rejected';
+  task: { title: string; notes: string | null; dueAt: string | null };
+  needsClarification: string | null;
+}
+
+export interface TraceEntry {
+  tool: string;
+  input: unknown;
+  output?: unknown;
+  error?: string;
+  durationMs: number;
+}
+
+export interface DataWarning {
+  propertyId: string;
+  reference: string;
+  flags: ListingFlag[];
+}
+
+export interface AssistantRun {
+  id: string;
+  leadId: string;
+  messageId: string;
+  /** 'running' only for background runs. */
+  status: 'running' | 'completed' | 'failed';
+  error?: string;
+  requirements: AssistantRequirements;
+  recommendations: Recommendation[];
+  summary: string;
+  proposedActions: ProposedAction[];
+  trace: TraceEntry[];
+  createdAt: string;
+  model?: string | null;
+  dataWarnings?: DataWarning[];
+}
+
 export interface Page<T> {
   items: T[];
   total: number;
@@ -128,4 +207,46 @@ export const api = {
   updateTask: (token: string, taskId: string, changes: Partial<Pick<Task, 'status'>>) =>
     request<Task>(`/tasks/${taskId}`, token, { method: 'PATCH', body: JSON.stringify(changes) }),
   getProperty: (token: string, propertyId: string) => request<Property>(`/properties/${propertyId}`, token),
+
+  /** Synchronous run: the API answers when the run has completed or failed (up to ~2 minutes). */
+  startAssistantRun: (token: string, leadId: string, messageId?: string) =>
+    request<AssistantRun>(`/leads/${enc(leadId)}/assistant/runs`, token, {
+      method: 'POST',
+      body: JSON.stringify(messageId ? { messageId } : {}),
+    }),
+  getAssistantRun: (token: string, leadId: string, runId: string) =>
+    request<AssistantRun>(`/leads/${enc(leadId)}/assistant/runs/${enc(runId)}`, token),
+  /**
+   * The lead's newest run, or null when there is none. Uses the extra endpoint
+   * `GET /leads/:id/assistant/runs?limit=1`; a 404 (no runs, or endpoint absent) means null.
+   */
+  latestAssistantRun: async (token: string, leadId: string): Promise<AssistantRun | null> => {
+    try {
+      const body = await request<AssistantRun[] | Page<AssistantRun>>(
+        `/leads/${enc(leadId)}/assistant/runs?limit=1`,
+        token,
+      );
+      const runs = Array.isArray(body) ? body : body.items;
+      return runs[0] ?? null;
+    } catch (err) {
+      if (err instanceof ApiError && (err.status === 404 || err.status === 405)) return null;
+      throw err;
+    }
+  },
+  approveAssistantAction: (token: string, leadId: string, runId: string, actionId: string) =>
+    request<{ action: ProposedAction; task: Task }>(
+      `/leads/${enc(leadId)}/assistant/runs/${enc(runId)}/actions/${enc(actionId)}/approve`,
+      token,
+      { method: 'POST' },
+    ),
+  rejectAssistantAction: (token: string, leadId: string, runId: string, actionId: string) =>
+    request<{ action: ProposedAction }>(
+      `/leads/${enc(leadId)}/assistant/runs/${enc(runId)}/actions/${enc(actionId)}/reject`,
+      token,
+      { method: 'POST' },
+    ),
 };
+
+function enc(segment: string): string {
+  return encodeURIComponent(segment);
+}
