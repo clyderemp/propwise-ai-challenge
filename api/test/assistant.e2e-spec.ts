@@ -7,6 +7,7 @@ import request from 'supertest';
 import { App } from 'supertest/types';
 import { stableId } from '../src/db/stable-id';
 import { Agent } from '../src/entities';
+import { AssistantService } from '../src/assistant/assistant.service';
 import { bearer, bootApp, login, OMAR, SARA } from './helpers';
 
 const KARIM = stableId('lead', 'karim');
@@ -138,6 +139,14 @@ describe('AI assistant API (scripted agent)', () => {
       expect(reasons[DKP_2001]).toMatch(/^(not_found|other_agency)$/);
       expect(reasons[MBR_1005_SOLD]).toBe('not_available');
       expect(reasons[MBR_1009]).toBe('not_seen_in_run');
+      // The model's summary was written before the checks: the stored summary says what was removed.
+      expect(run.summary).toMatch(/removed \d+ suggested listings/i);
+      expect(run.summary).toContain('MBR-1005 (not available)');
+    });
+
+    it('records token usage of the run in diagnostics', async () => {
+      const run = await startRun(sara, KARIM);
+      expect(run.diagnostics.usage).toEqual({ inputTokens: 1000, outputTokens: 200, totalTokens: 1200 });
     });
 
     it('accepts an explicit messageId of the lead', async () => {
@@ -307,6 +316,51 @@ describe('AI assistant API (scripted agent)', () => {
       await http().get(`${runsPath(NADIA)}/${karimRun.id}`).set(bearer(omar)).expect(404);
       await http().get(`${runsPath(KARIM)}/00000000-0000-4000-8000-000000000000`).set(bearer(sara)).expect(404);
       await http().get(`${runsPath(KARIM)}/abc`).set(bearer(sara)).expect(400);
+    });
+  });
+
+  describe('GET /leads/:leadId/assistant/runs (latest first)', () => {
+    it("lists the lead's runs newest first, limited, as the run shape", async () => {
+      const leadId = await newLead(sara, 'History probe', [{ direction: 'inbound', body: 'Hi' }]);
+      const first = await startRun(sara, leadId);
+      const second = await startRun(sara, leadId);
+      const all = await http().get(runsPath(leadId)).set(bearer(sara)).expect(200);
+      expect(all.body.map((r: Json) => r.id)).toEqual([second.id, first.id]);
+      expect(all.body[0]).toEqual(second);
+      const latest = await http().get(`${runsPath(leadId)}?limit=1`).set(bearer(sara)).expect(200);
+      expect(latest.body.map((r: Json) => r.id)).toEqual([second.id]);
+    });
+
+    it('answers 404 for another agency, 400 for a bad limit, and [] for a lead with no runs', async () => {
+      await http().get(runsPath(NADIA)).set(bearer(sara)).expect(404);
+      await http().get(`${runsPath(KARIM)}?limit=0`).set(bearer(sara)).expect(400);
+      await http().get(`${runsPath(KARIM)}?limit=abc`).set(bearer(sara)).expect(400);
+      const leadId = await newLead(sara, 'No runs yet', [{ direction: 'inbound', body: 'Hi' }]);
+      const none = await http().get(runsPath(leadId)).set(bearer(sara)).expect(200);
+      expect(none.body).toEqual([]);
+    });
+  });
+
+  describe('runs cut off by a restart', () => {
+    it('marks runs left running past the deadline as failed, and leaves recent ones alone', async () => {
+      const orm = app.get(MikroORM);
+      const em = orm.em.fork();
+      const stale = await startRun(sara, LINA);
+      const fresh = await startRun(sara, LINA);
+      await em.getConnection().execute(
+        `update assistant_runs set status = 'running', finished_at = null, created_at = now() - interval '1 hour' where id = ?`,
+        [stale.id],
+      );
+      await em.getConnection().execute(`update assistant_runs set status = 'running', finished_at = null where id = ?`, [fresh.id]);
+
+      const swept = await app.get(AssistantService).failInterruptedRuns();
+      expect(swept).toBeGreaterThanOrEqual(1);
+
+      const staleNow = (await http().get(`${runsPath(LINA)}/${stale.id}`).set(bearer(sara)).expect(200)).body;
+      expect(staleNow).toMatchObject({ status: 'failed', recommendations: [], proposedActions: [], requirements: EMPTY_REQUIREMENTS });
+      expect(staleNow.error).toMatch(/interrupted/i);
+      const freshNow = (await http().get(`${runsPath(LINA)}/${fresh.id}`).set(bearer(sara)).expect(200)).body;
+      expect(freshNow.status).toBe('running');
     });
   });
 

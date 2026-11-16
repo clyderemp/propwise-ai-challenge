@@ -1,4 +1,5 @@
-import { IsOptional, IsUUID } from 'class-validator';
+import { Type } from 'class-transformer';
+import { IsInt, IsOptional, IsUUID, Max, Min } from 'class-validator';
 import { AssistantRun as AssistantRunEntity, ProposedAction as ProposedActionEntity } from '../entities';
 import { AssistantRun, ProposedAction } from './assistant.types';
 import { emptyRequirements } from './domain/requirements';
@@ -8,6 +9,16 @@ export class CreateAssistantRunDto {
   @IsOptional()
   @IsUUID('all')
   messageId?: string;
+}
+
+export class ListAssistantRunsQuery {
+  /** How many runs, newest first. Default 20. */
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(50)
+  limit?: number;
 }
 
 /** The contract's ProposedAction, plus `taskId` (extra) once approved. */

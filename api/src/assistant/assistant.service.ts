@@ -5,6 +5,7 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  OnApplicationBootstrap,
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { toTaskDto } from '../common/dto';
@@ -28,6 +29,8 @@ import {
   ASSISTANT_AGENT,
   AssistantRun,
   DataWarning,
+  DropReason,
+  DroppedRecommendation,
   FollowUpTaskDraft,
   TraceEntry,
 } from './assistant.types';
@@ -69,7 +72,7 @@ export function describeFailure(error: unknown, timeoutMs: number): string {
 }
 
 @Injectable()
-export class AssistantService {
+export class AssistantService implements OnApplicationBootstrap {
   private readonly logger = new Logger(AssistantService.name);
 
   constructor(
@@ -143,6 +146,50 @@ export class AssistantService {
       clearTimeout(timer);
     }
     return toAssistantRunDto(run, actions);
+  }
+
+  /**
+   * A run still 'running' well past the deadline was cut off by a restart or crash: no process will ever
+   * finish it. Called at startup. Only runs older than twice the deadline are touched, so a second API
+   * process (or an eval) sharing the database never fails a run that is still in flight.
+   */
+  async failInterruptedRuns(): Promise<number> {
+    const cutoff = new Date(Date.now() - 2 * runTimeoutMs());
+    return this.em.fork().nativeUpdate(
+      AssistantRunEntity,
+      { status: 'running', createdAt: { $lt: cutoff } },
+      {
+        status: 'failed',
+        error: 'The run was interrupted (the API restarted or crashed before it finished). Start a new analysis.',
+        finishedAt: new Date(),
+      },
+    );
+  }
+
+  async onApplicationBootstrap(): Promise<void> {
+    try {
+      const swept = await this.failInterruptedRuns();
+      if (swept > 0) this.logger.warn(`Marked ${swept} interrupted assistant run(s) as failed.`);
+    } catch (error) {
+      this.logger.error(`Could not sweep interrupted assistant runs: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  /** The lead's runs, newest first. */
+  async listRuns(agencyId: string, leadId: string, limit: number): Promise<AssistantRun[]> {
+    const lead = await this.findLead(agencyId, leadId);
+    const runs = await this.em.find(
+      AssistantRunEntity,
+      { lead, agency: agencyId },
+      { orderBy: { createdAt: 'desc', id: 'desc' }, limit, refresh: true },
+    );
+    if (runs.length === 0) return [];
+    const actions = await this.em.find(
+      ProposedActionEntity,
+      { run: { $in: runs.map((r) => r.id) } },
+      { orderBy: { createdAt: 'asc', id: 'asc' }, refresh: true },
+    );
+    return runs.map((run) => toAssistantRunDto(run, actions.filter((a) => a.run.id === run.id)));
   }
 
   async getRun(agencyId: string, leadId: string, runId: string): Promise<AssistantRun> {
@@ -252,12 +299,13 @@ export class AssistantService {
     run.model = outcome.model;
     run.requirements = outcome.requirements;
     run.recommendations = validation.kept;
-    run.summary = outcome.summary;
+    run.summary = withDroppedNote(outcome.summary, validation.dropped);
     run.trace = longest(outcome.trace, recorded);
     run.diagnostics = {
       droppedRecommendations: validation.dropped,
       budgetBand: validation.budgetBand,
       searchSkipped: outcome.searchSkipped,
+      usage: outcome.usage ?? null,
     };
     run.dataWarnings = dataWarnings;
     run.finishedAt = new Date();
@@ -315,6 +363,36 @@ export class AssistantService {
   private actionsOf(run: AssistantRunEntity): Promise<ProposedActionEntity[]> {
     return this.em.find(ProposedActionEntity, { run }, { orderBy: { createdAt: 'asc', id: 'asc' }, refresh: true });
   }
+}
+
+const DROP_LABELS: Record<DropReason, string> = {
+  not_seen_in_run: 'not returned by a search in this run',
+  not_found: 'not found',
+  other_agency: 'not found',
+  not_available: 'not available',
+  rent_intent: 'the lead wants to rent',
+  no_criteria: 'no criteria to match',
+  not_requested: 'not the listing the lead asked about',
+  area_mismatch: 'wrong area',
+  bedrooms_mismatch: 'wrong bedrooms',
+  type_mismatch: 'wrong property type',
+  over_budget: 'over budget',
+  under_budget: 'under budget',
+  price_suspect: 'suspect price',
+  duplicate: 'duplicate listing',
+  repeated: 'repeated',
+  over_cap: 'over the limit of recommendations',
+};
+
+/**
+ * The model writes its summary before the server checks its picks. When the checks removed any, say so,
+ * so the summary never presents a removed listing as a recommendation.
+ */
+export function withDroppedNote(summary: string, dropped: readonly DroppedRecommendation[]): string {
+  if (dropped.length === 0) return summary;
+  const items = dropped.map((d) => `${d.reference ?? 'an unknown listing'} (${DROP_LABELS[d.reason]})`);
+  const note = `Server checks removed ${dropped.length} suggested listing${dropped.length === 1 ? '' : 's'}: ${items.join(', ')}.`;
+  return [summary.trim(), note].filter(Boolean).join(' ');
 }
 
 /** The fuller of two traces of the same run (the agent's own list, or what the sink received). */

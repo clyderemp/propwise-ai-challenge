@@ -147,6 +147,14 @@ export interface RunDiagnostics {
   budgetBand: BudgetBand | null;
   /** True when Phase A extracted no search criteria, so no listing search was run. */
   searchSkipped: boolean;
+  /** Model tokens the run used (both phases). Absent on runs stored before this was recorded. */
+  usage?: TokenUsage | null;
+}
+
+export interface TokenUsage {
+  inputTokens: number;
+  outputTokens: number;
+  totalTokens: number;
 }
 
 export interface DataWarning {
@@ -291,6 +299,8 @@ export interface AgentOutcome {
   trace: TraceEntry[];
   /** True when no search criteria were extracted and the listing search was skipped. */
   searchSkipped: boolean;
+  /** Model tokens used, when the agent reports them. */
+  usage?: TokenUsage;
 }
 
 export interface AgentPort {

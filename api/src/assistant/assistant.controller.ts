@@ -1,6 +1,6 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Param, ParseUUIDPipe, Post } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Param, ParseUUIDPipe, Post, Query } from '@nestjs/common';
 import { AuthAgent, CurrentAgent } from '../auth/decorators';
-import { CreateAssistantRunDto } from './assistant.dto';
+import { CreateAssistantRunDto, ListAssistantRunsQuery } from './assistant.dto';
 import { AssistantService } from './assistant.service';
 
 @Controller('leads/:leadId/assistant/runs')
@@ -15,6 +15,16 @@ export class AssistantController {
     @Body() dto: CreateAssistantRunDto,
   ) {
     return this.assistant.createRun(agent, leadId, dto ?? {});
+  }
+
+  /** Extra endpoint: the lead's runs, newest first (the panels load the latest with ?limit=1). */
+  @Get()
+  listRuns(
+    @CurrentAgent() agent: AuthAgent,
+    @Param('leadId', ParseUUIDPipe) leadId: string,
+    @Query() query: ListAssistantRunsQuery,
+  ) {
+    return this.assistant.listRuns(agent.agencyId, leadId, query.limit ?? 20);
   }
 
   @Get(':runId')

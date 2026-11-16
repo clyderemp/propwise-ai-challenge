@@ -115,6 +115,7 @@ export class FakeAssistantAgent implements AgentPort {
       followUp,
       trace,
       searchSkipped,
+      usage: { inputTokens: 1000, outputTokens: 200, totalTokens: 1200 },
     };
   }
 }
