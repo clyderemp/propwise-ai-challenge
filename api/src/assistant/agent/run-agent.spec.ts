@@ -3,6 +3,7 @@ import { AgentMessage, AgentRunContext, AgentRunError, TraceEntry } from '../ass
 import { byRef, MARINA_BAY_ID, DESERT_KEY_ID } from '../domain/seed-listings.fixture';
 import { FaultInjector } from './fault-injector';
 import { NOT_CONFIGURED_MESSAGE, AnthropicLlmGateway } from './llm.gateway';
+import { factualReason } from '../domain/matching';
 import { normalizeExtraction, runAssistantAgent, RunAgentDeps } from './run-agent';
 import { ExtractionOutput } from './schemas';
 import { FakeDataAccess } from './testing/fake-data-access';
@@ -391,5 +392,106 @@ describe('AnthropicLlmGateway', () => {
     expect(error.kind).toBe('model');
     expect(error.message).toBe(NOT_CONFIGURED_MESSAGE);
     expect(error.trace).toEqual([]);
+  });
+});
+
+describe('runAssistantAgent self-verification', () => {
+  const data = new FakeDataAccess();
+  const mbr1001 = byRef(data.listings, 'MBR-1001');
+  const mbr1002 = byRef(data.listings, 'MBR-1002');
+  const RIGHT_1001 = 'MBR-1001 is a 2BR apartment in Marina Gate 1, Dubai Marina, asking AED 2,050,000 with a 7.32% gross yield. It is available.';
+  const RIGHT_1002 = 'MBR-1002 is a 2BR apartment in Princess Tower, Dubai Marina, asking AED 1,890,000 with a 6.61% gross yield. It is available.';
+  const WRONG_1001 = 'MBR-1001 is a 2BR apartment in Marina Gate 1, Dubai Marina, asking AED 2,050,000 with an 8.1% gross yield. It is available.';
+  const answer = (r1001: string) => ({
+    json: {
+      recommendations: [
+        { propertyId: mbr1001.id, reason: r1001 },
+        { propertyId: mbr1002.id, reason: RIGHT_1002 },
+      ],
+      summary: 'Two good fits.',
+      followUpTask: { title: 'Call Karim', notes: null },
+    },
+  });
+  const search = { toolCalls: [{ name: 'search_listings', input: KARIM_SEARCH }] };
+
+  it('makes no extra model call when every reason checks out', async () => {
+    const t = setup([{ json: karimExtraction() }, search, answer(RIGHT_1001)]);
+    const outcome = await t.run();
+    expect(t.model.calls).toHaveLength(3);
+    expect(outcome.candidates.map((c) => c.reason)).toEqual([RIGHT_1001, RIGHT_1002]);
+    expect(outcome.selfVerification).toEqual({ checkedRecommendations: 2, issuesFound: [], revised: false, rounds: 0, fallbackReasons: [] });
+  });
+
+  it('gives the model one revision turn listing the issues, and ships the corrected reason', async () => {
+    const t = setup([{ json: karimExtraction() }, search, answer(WRONG_1001), answer(RIGHT_1001)]);
+    const outcome = await t.run();
+
+    expect(t.model.calls).toHaveLength(4);
+    const revision = t.model.calls[3];
+    // Same conversation: the first answer is in the prompt, followed by the issues as data.
+    const prompt = JSON.stringify(revision.prompt);
+    expect(prompt).toContain('8.1% gross yield');
+    expect(prompt).toContain('<claim_issues>');
+    expect(prompt).toContain('7.32%');
+    // Read-only tools only, and no forced tool choice or sampling parameters.
+    expect(t.model.toolNamesOnCall(3).sort()).toEqual(['get_lead_tasks', 'get_listing_details', 'search_listings']);
+    expect(revision.toolChoice?.type ?? 'auto').toBe('auto');
+    expect(revision.temperature).toBeUndefined();
+
+    expect(outcome.candidates.map((c) => c.reason)).toEqual([RIGHT_1001, RIGHT_1002]);
+    expect(outcome.selfVerification).toEqual({
+      checkedRecommendations: 2,
+      issuesFound: [{ propertyId: mbr1001.id, reference: 'MBR-1001', kind: 'yield', claim: '8.1%', expected: '7.32%' }],
+      revised: true,
+      rounds: 1,
+      fallbackReasons: [],
+    });
+    // The trace stays tool calls only.
+    expect(outcome.trace.map((e) => e.tool)).toEqual(['search_listings']);
+  });
+
+  it('replaces a reason that is still wrong after the revision with the factual reason', async () => {
+    const t = setup([{ json: karimExtraction() }, search, answer(WRONG_1001), answer(WRONG_1001)]);
+    const outcome = await t.run();
+
+    expect(t.model.calls).toHaveLength(4);
+    expect(outcome.candidates[0]).toEqual({ propertyId: mbr1001.id, reason: factualReason(mbr1001) });
+    expect(outcome.candidates[1].reason).toBe(RIGHT_1002);
+    expect(outcome.selfVerification).toMatchObject({ revised: true, rounds: 1 });
+    expect(outcome.selfVerification?.fallbackReasons).toEqual([
+      { propertyId: mbr1001.id, reference: 'MBR-1001', issues: [expect.objectContaining({ kind: 'yield', claim: '8.1%' })] },
+    ]);
+  });
+
+  it('falls back without failing the run when the revision call fails, and never makes a second one', async () => {
+    const t = setup([{ json: karimExtraction() }, search, answer(WRONG_1001), { throws: new Error('overloaded') }]);
+    const outcome = await t.run();
+
+    expect(t.model.calls).toHaveLength(4);
+    expect(outcome.candidates[0].reason).toBe(factualReason(mbr1001));
+    expect(outcome.summary).toBe('Two good fits.');
+    expect(outcome.selfVerification).toMatchObject({ revised: false, rounds: 1, revisionError: expect.stringContaining('overloaded') });
+  });
+
+  it('falls back when the revision answers with a tool call instead of a shortlist', async () => {
+    const t = setup([{ json: karimExtraction() }, search, answer(WRONG_1001), search]);
+    const outcome = await t.run();
+
+    expect(t.model.calls).toHaveLength(4);
+    expect(outcome.candidates[0].reason).toBe(factualReason(mbr1001));
+    expect(outcome.selfVerification).toMatchObject({ revised: false, rounds: 1 });
+  });
+
+  it('also revises when a candidate fails the recommendation validation', async () => {
+    const sold = byRef(data.listings, 'MBR-1005');
+    const first = { json: { recommendations: [{ propertyId: sold.id, reason: 'Sold listing.' }], summary: 's', followUpTask: null } };
+    const t = setup([{ json: karimExtraction() }, search, first, answer(RIGHT_1001)]);
+    const outcome = await t.run();
+
+    expect(t.model.calls).toHaveLength(4);
+    expect(outcome.selfVerification?.issuesFound).toEqual([
+      expect.objectContaining({ propertyId: sold.id, reference: 'MBR-1005', kind: 'validation' }),
+    ]);
+    expect(outcome.candidates.map((c) => c.propertyId)).toEqual([mbr1001.id, mbr1002.id]);
   });
 });

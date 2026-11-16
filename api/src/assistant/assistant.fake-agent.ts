@@ -121,6 +121,8 @@ export class FakeAssistantAgent implements AgentPort {
       trace,
       searchSkipped,
       usage: { inputTokens: 1000, outputTokens: 200, totalTokens: 1200 },
+      // No model, so no revision turn: the record says nothing was checked wrong.
+      selfVerification: { checkedRecommendations: candidates.length, issuesFound: [], revised: false, rounds: 0, fallbackReasons: [] },
     };
   }
 }

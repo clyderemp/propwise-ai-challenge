@@ -155,6 +155,36 @@ export interface RunDiagnostics {
   failureKind?: RunFailureKind | null;
   /** Wall-clock timings of the run. Absent on runs stored before this was recorded. */
   timings?: RunTimings | null;
+  /** The post-answer claim check and its one revision turn. Absent on runs stored before this existed. */
+  selfVerification?: SelfVerification | null;
+}
+
+/** What a recommendation reason got wrong against the listing data. */
+export type ClaimIssueKind = 'price' | 'yield' | 'bedrooms' | 'location' | 'status' | 'other_listing' | 'validation';
+
+export interface ClaimIssue {
+  propertyId: string;
+  reference: string | null;
+  kind: ClaimIssueKind;
+  /** What the reason said (or, for 'validation', the drop reason). */
+  claim: string;
+  /** What the data says. */
+  expected: string;
+}
+
+export interface SelfVerification {
+  /** Candidates checked after Phase B. */
+  checkedRecommendations: number;
+  /** Issues found in the first answer. */
+  issuesFound: ClaimIssue[];
+  /** True when the revision turn returned a usable answer that replaced the first one. */
+  revised: boolean;
+  /** Revision turns used: 0 or 1. */
+  rounds: number;
+  /** Reasons still wrong after revision, replaced by the code-generated factual reason. */
+  fallbackReasons: Array<{ propertyId: string; reference: string; issues: ClaimIssue[] }>;
+  /** Why the revision turn produced nothing usable, when it did not. */
+  revisionError?: string;
 }
 
 export interface RunTimings {
@@ -327,6 +357,8 @@ export interface AgentOutcome {
   steps?: number;
   /** Phase timings, when the agent reports them. */
   timings?: { extractionMs: number; analysisMs: number; totalMs: number };
+  /** Claim check and revision record, when the agent ran one. */
+  selfVerification?: SelfVerification;
 }
 
 export interface AgentPort {

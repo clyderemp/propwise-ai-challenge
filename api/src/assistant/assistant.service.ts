@@ -519,6 +519,7 @@ export class AssistantService implements OnApplicationBootstrap, BeforeApplicati
       usage: outcome.usage ? priceUsage(outcome.model, outcome.usage) : null,
       failureKind: null,
       timings,
+      selfVerification: outcome.selfVerification ?? null,
     };
     run.dataWarnings = dataWarnings;
     run.finishedAt = new Date(timings.finishedAt);

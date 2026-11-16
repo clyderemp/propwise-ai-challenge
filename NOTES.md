@@ -11,7 +11,7 @@ The AI lead assistant described in TASK.md: the API agent, the web panel, the mo
 - **Background runs** (stretch 1): `POST .../runs?async=true` answers `202` with the run in `status: "running"`, and `GET` shows each tool call as it happens. Details under "Stretch items".
 - **Web**: the "AI assistant" panel on the lead page. It starts an analysis in the background, shows each tool step live while it runs, then the requirements, the ranked recommendations with the listing facts, the summary, the trace and the proposed follow-up with Approve/Reject. An approved task appears in the Tasks list.
 - **Mobile**: the "AI assistant" card. It loads the latest run, can start a new one (synchronously), polls a run that is still running, and has Approve/Reject (the bonus).
-- **Evals**: `api/evals/`, 15 cases on the real model. Plain assertions gate the verdict; a model-graded score of reason quality is reported but does not gate.
+- **Evals**: `api/evals/`, 16 cases on the real model (16 checks the self-verification record and every shipped reason against the database). Plain assertions gate the verdict; a model-graded score of reason quality is reported but does not gate.
 - **Model comparison** (stretch 2): `api/evals/model-comparison.md`, Sonnet, Opus and Haiku 5.5 on the eval suite. Sonnet ships.
 
 ## Main decisions
@@ -33,6 +33,7 @@ The AI lead assistant described in TASK.md: the API agent, the web panel, the mo
    - Times default to 10:00 local. "After the weekend" means the first Monday strictly after the sent date (the UAE weekend is Saturday and Sunday).
    - Unclear timing gives `dueAt: null` plus `needsClarification`.
 4. **Approval is a compare-and-set.** Approve runs `UPDATE ... WHERE status = 'pending_approval'` and the task insert in one transaction. A second approve returns the same task. Approving a rejected action, or rejecting an approved one, gives 409. A run itself writes only its own run row and action rows.
+4a. **Self-verification of reasons.** After Phase B, code checks every candidate: the recommendation validation plus `domain/claim-check.ts`, which reads AED amounts (2.05M, 2,050,000, AED 2m), yield percentages (0.15 pp tolerance against the computed gross yield), bedroom counts, area and building names, status words and other listing codes in each reason and compares them with the listing row. If anything is off, the model gets exactly one revision turn in the same conversation, with the issues as data, the same read-only tools, no retries and inside the run deadline. Any reason still wrong is replaced by a code-built factual reason, so a wrong figure is never shipped. The record is in `diagnostics.selfVerification` (`checkedRecommendations`, `issuesFound`, `revised`, `rounds`, `fallbackReasons`, and `revisionError` when the turn produced nothing usable); the trace stays tool calls only.
 5. **Failures say they failed.**
    - Any model error, tool error, schema-invalid output or timeout (110 s deadline, under the 2-minute limit) gives `201` with `status: "failed"`, an `error` and the exact empty shape.
    - The trace keeps the failed call with its `error`.
