@@ -148,7 +148,7 @@ export function normalizeExtraction(raw: ExtractionOutput, agencyAreas: readonly
       days: nonNegativeInt(raw.timeline.days),
       month: inRange(raw.timeline.month, 1, 12),
       day: inRange(raw.timeline.day, 1, 31),
-      year: raw.timeline.year,
+      year: raw.timeline.year > 0 ? raw.timeline.year : null,
       quote: raw.timeline.quote?.trim() || null,
     },
     leadAskedForFollowUp: raw.leadAskedForFollowUp,

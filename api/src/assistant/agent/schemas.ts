@@ -36,9 +36,10 @@ export const extractionSchema = z.object({
     .object({
       kind: z.enum(TIMELINE_KINDS).describe('How soon the lead means to buy or move. Not when to contact them.'),
       days: z.number().int().nullable().describe('within_days only: "within 2 weeks" = 14.'),
-      month: z.number().int().nullable().describe('by_date only: 1-12.'),
-      day: z.number().int().nullable().describe('by_date only: 1-31.'),
-      year: z.number().int().nullable().describe('by_date only, when stated.'),
+      // Not nullable: 0 means "not given". The provider allows at most 16 nullable parameters per schema.
+      month: z.number().int().describe('by_date only: 1-12. 0 otherwise.'),
+      day: z.number().int().describe('by_date only: 1-31. 0 otherwise.'),
+      year: z.number().int().describe('by_date only, when the lead stated the year. 0 otherwise.'),
       quote: z.string().nullable().describe('The exact words the timeline was read from.'),
     })
     .describe("The lead's purchase or move timeline, separate from followUp."),

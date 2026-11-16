@@ -1,4 +1,5 @@
 import { APICallError } from 'ai';
+import { z } from 'zod';
 import { AgentMessage, AgentRunContext, AgentRunError, TraceEntry } from '../assistant.types';
 import { byRef, MARINA_BAY_ID, DESERT_KEY_ID } from '../domain/seed-listings.fixture';
 import { FaultInjector } from './fault-injector';
@@ -37,7 +38,7 @@ function karimExtraction(overrides: Partial<ExtractionOutput['requirements']> = 
       ...overrides,
     },
     followUp: { kind: 'relative_days', days: 1, weekday: null, month: null, day: null, year: null, time: null, quote: 'tomorrow', unclearReason: null },
-    timeline: { kind: 'none', days: null, month: null, day: null, year: null, quote: null },
+    timeline: { kind: 'none', days: null, month: 0, day: 0, year: 0, quote: null },
     leadAskedForFollowUp: true,
   };
 }
@@ -58,7 +59,7 @@ function emptyExtraction(): ExtractionOutput {
       listingReferences: [],
     },
     followUp: { kind: 'none', days: null, weekday: null, month: null, day: null, year: null, time: null, quote: null, unclearReason: null },
-    timeline: { kind: 'none', days: null, month: null, day: null, year: null, quote: null },
+    timeline: { kind: 'none', days: null, month: 0, day: 0, year: 0, quote: null },
     leadAskedForFollowUp: false,
   };
 }
@@ -350,10 +351,25 @@ describe('runAssistantAgent', () => {
 });
 
 describe('extraction schema and prompt: timeline vs contact timing', () => {
+  it('stays within the provider limit of 16 union-typed (nullable) parameters in a structured-output schema', () => {
+    let unions = 0;
+    const walk = (node: unknown): void => {
+      if (!node || typeof node !== 'object') return;
+      const n = node as { properties?: Record<string, { anyOf?: unknown; type?: unknown }>; items?: unknown };
+      for (const prop of Object.values(n.properties ?? {})) {
+        if (prop.anyOf || Array.isArray(prop.type)) unions++;
+        walk(prop);
+      }
+      walk(n.items);
+    };
+    walk(z.toJSONSchema(extractionSchema));
+    expect(unions).toBeLessThanOrEqual(16);
+  });
+
   it('requires a timeline next to followUp', () => {
     const { timeline: _t, ...withoutTimeline } = karimExtraction();
     expect(extractionSchema.safeParse(withoutTimeline).success).toBe(false);
-    const lina = { ...karimExtraction(), timeline: { kind: 'this_week', days: null, month: null, day: null, year: null, quote: 'Ready to buy this week' } };
+    const lina = { ...karimExtraction(), timeline: { kind: 'this_week', days: null, month: 0, day: 0, year: 0, quote: 'Ready to buy this week' } };
     expect(extractionSchema.safeParse(lina).success).toBe(true);
     expect(extractionSchema.safeParse({ ...lina, timeline: { ...lina.timeline, kind: 'next_year' } }).success).toBe(false);
   });
@@ -395,6 +411,12 @@ describe('normalizeExtraction', () => {
     raw.timeline = { kind: 'within_days', days: -2, month: 13, day: 0, year: 2027, quote: '  within a few days  ' };
     const x = normalizeExtraction(raw, areas);
     expect(x.timeline).toEqual({ kind: 'within_days', days: null, month: null, day: null, year: 2027, quote: 'within a few days' });
+  });
+
+  it('reads 0 in the timeline date fields as "not given"', () => {
+    const raw = karimExtraction();
+    raw.timeline = { kind: 'by_date', days: null, month: 12, day: 15, year: 0, quote: 'by 15 December' };
+    expect(normalizeExtraction(raw, areas).timeline).toEqual({ kind: 'by_date', days: null, month: 12, day: 15, year: null, quote: 'by 15 December' });
   });
 
   it('nulls negative bedrooms and a malformed time', () => {
