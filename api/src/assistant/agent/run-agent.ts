@@ -1,5 +1,5 @@
 import { APICallError, generateText, LoadAPIKeyError, NoObjectGeneratedError, NoOutputGeneratedError, Output, RetryError, stepCountIs, StepResult, ToolSet } from 'ai';
-import type { LanguageModel } from 'ai';
+import type { LanguageModel, ModelMessage } from 'ai';
 import {
   AgentFailureKind,
   AgentFollowUp,
@@ -7,15 +7,20 @@ import {
   AgentRunContext,
   AgentRunError,
   CandidateRecommendation,
+  ClaimIssue,
+  ExtractedRequirements,
   Extraction,
   FollowUpIntent,
+  SelfVerification,
 } from '../assistant.types';
-import { budgetBand } from '../domain/matching';
+import { checkReasonClaims } from '../domain/claim-check';
+import { ListingRecord } from '../domain/listing-facts';
+import { budgetBand, factualReason, validateRecommendations } from '../domain/matching';
 import { hasSearchCriteria, sanitizeBudget, toContractRequirements } from '../domain/requirements';
 import { FaultInjector } from './fault-injector';
 import { LlmGateway, NOT_CONFIGURED_MESSAGE } from './llm.gateway';
-import { ANALYSIS_SYSTEM, analysisPrompt, EXTRACTION_SYSTEM, extractionPrompt } from './prompts';
-import { analysisSchema, extractionSchema, ExtractionOutput, MAX_REASON, MAX_SUMMARY, MAX_TASK_NOTES, MAX_TASK_TITLE } from './schemas';
+import { ANALYSIS_SYSTEM, analysisPrompt, EXTRACTION_SYSTEM, extractionPrompt, revisionPrompt } from './prompts';
+import { AnalysisOutput, analysisSchema, extractionSchema, ExtractionOutput, MAX_REASON, MAX_SUMMARY, MAX_TASK_NOTES, MAX_TASK_TITLE } from './schemas';
 import { AgentDataAccess, createAgentTools, ToolFailure, ToolRecorder } from './tools';
 
 /**
@@ -46,6 +51,8 @@ const EXTRACTION_EFFORT = 'low';
 const ANALYSIS_EFFORT = 'medium';
 const EXTRACTION_MAX_TOKENS = 8_000;
 const ANALYSIS_MAX_TOKENS = 16_000;
+/** The revision turn is skipped (and reasons fall back) when less than this is left of the run deadline. */
+const MIN_REVISION_MS = 5_000;
 
 export interface RunAgentDeps {
   data: AgentDataAccess;
@@ -195,8 +202,10 @@ export async function runAssistantAgent(ctx: AgentRunContext, deps: RunAgentDeps
 
   // Phase A: extraction. No tools, no listing text.
   const extractionStarted = performance.now();
+  let agencyListings: ListingRecord[] = [];
   const extraction = await state.phase(async () => {
     const listings = await deps.data.agencyListings(ctx.agencyId);
+    agencyListings = listings;
     const agencyAreas = [...new Set(listings.map((l) => l.area))].sort();
     const result = await generateText({
       ...common,
@@ -223,18 +232,19 @@ export async function runAssistantAgent(ctx: AgentRunContext, deps: RunAgentDeps
     includeListingTools: !searchSkipped,
   });
   const analysisStarted = performance.now();
-  const analysis = await state.phase(async () => {
+  const analysisRequest = analysisPrompt({
+    leadName: ctx.lead.name,
+    message: ctx.message,
+    requirements: extraction.requirements,
+    budgetBand: budgetBand(extraction.requirements),
+    listingToolsAvailable: !searchSkipped,
+  });
+  const analysisTurn = await state.phase(async () => {
     const result = await generateText({
       ...common,
       model,
       system: ANALYSIS_SYSTEM,
-      prompt: analysisPrompt({
-        leadName: ctx.lead.name,
-        message: ctx.message,
-        requirements: extraction.requirements,
-        budgetBand: budgetBand(extraction.requirements),
-        listingToolsAvailable: !searchSkipped,
-      }),
+      prompt: analysisRequest,
       tools,
       stopWhen: [stepCountIs(limits.maxSteps), () => recorder.failure !== null],
       onStepFinish: (step) => recordRejectedCalls(step, recorder),
@@ -247,19 +257,84 @@ export async function runAssistantAgent(ctx: AgentRunContext, deps: RunAgentDeps
     if (result.finishReason === 'content-filter') throw state.fail('model', 'The model declined to analyse this message.');
     if (result.finishReason === 'tool-calls') throw state.fail('invalid_output', `The assistant did not finish within ${limits.maxSteps} steps.`);
     if (result.finishReason === 'length') throw state.fail('invalid_output', 'The model ran out of output tokens before answering.');
-    return result.output;
+    return { output: result.output, messages: result.response.messages };
   });
-  const analysisMs = performance.now() - analysisStarted;
 
-  const candidates: CandidateRecommendation[] = [];
+  // Self-verification: check every candidate's reason against the data, give the model one revision
+  // turn when anything is wrong, then replace any reason still wrong with a factual one.
+  let analysis = analysisTurn.output;
+  let candidates = toCandidates(analysis, searchSkipped);
+  let selfVerification: SelfVerification | undefined;
   if (!searchSkipped) {
-    for (const rec of analysis.recommendations) {
-      const propertyId = rec.propertyId.trim();
-      if (propertyId && !candidates.some((c) => c.propertyId === propertyId)) {
-        candidates.push({ propertyId, reason: clamp(rec.reason, MAX_REASON) });
+    const check = verificationInput(extraction.requirements, ctx.agencyId, agencyListings, recorder.seenPropertyIds);
+    const checked = candidates.length;
+    const issuesFound = [...validationIssues(candidates, check), ...claimIssues(candidates, check)];
+    let revised = false;
+    let rounds = 0;
+    let revisionError: string | undefined;
+    if (issuesFound.length > 0) {
+      const leftMs = limits.runTimeoutMs - (performance.now() - state.started);
+      if (leftMs < MIN_REVISION_MS || state.signal.aborted) {
+        revisionError = 'Not enough time left before the run deadline for a revision turn.';
+      } else {
+        rounds = 1;
+        const messages: ModelMessage[] = [
+          { role: 'user', content: analysisRequest },
+          ...analysisTurn.messages,
+          { role: 'user', content: revisionPrompt(issuesFound) },
+        ];
+        try {
+          const result = await generateText({
+            ...common,
+            // Exactly one extra request: no retries, one step, inside the run deadline.
+            maxRetries: 0,
+            abortSignal: AbortSignal.any([state.signal, AbortSignal.timeout(Math.min(limits.stepTimeoutMs, leftMs - 1_000))]),
+            model,
+            system: ANALYSIS_SYSTEM,
+            messages,
+            tools,
+            stopWhen: stepCountIs(1),
+            onStepFinish: (step) => recordRejectedCalls(step, recorder),
+            output: Output.object({ schema: analysisSchema }),
+            maxOutputTokens: ANALYSIS_MAX_TOKENS,
+            providerOptions: { anthropic: { effort: ANALYSIS_EFFORT } },
+          });
+          addUsage(usage, result.totalUsage);
+          if (result.finishReason !== 'stop') {
+            revisionError = `The revision turn ended with ${result.finishReason} instead of an answer.`;
+          } else {
+            analysis = result.output;
+            candidates = toCandidates(analysis, searchSkipped);
+            revised = true;
+          }
+        } catch (error) {
+          revisionError = `The revision turn failed: ${error instanceof Error ? error.message : String(error)}`;
+        }
+        // A tool failure ends the run as failed, in the revision turn as anywhere else.
+        if (recorder.failure) throw state.toRunError(null);
       }
     }
+    const fallbackReasons: SelfVerification['fallbackReasons'] = [];
+    if (issuesFound.length > 0) {
+      candidates = candidates.map((c) => {
+        const listing = check.byId.get(c.propertyId);
+        if (!listing) return c;
+        const remaining = checkReasonClaims(c.reason, listing, check.claimContext);
+        if (remaining.length === 0) return c;
+        fallbackReasons.push({ propertyId: c.propertyId, reference: listing.reference, issues: remaining });
+        return { propertyId: c.propertyId, reason: clamp(factualReason(listing), MAX_REASON) };
+      });
+    }
+    selfVerification = {
+      checkedRecommendations: checked,
+      issuesFound,
+      revised,
+      rounds,
+      fallbackReasons,
+      ...(revisionError !== undefined ? { revisionError } : {}),
+    };
   }
+  const analysisMs = performance.now() - analysisStarted;
 
   return {
     model: deps.gateway.modelId,
@@ -272,6 +347,7 @@ export async function runAssistantAgent(ctx: AgentRunContext, deps: RunAgentDeps
     trace: [...recorder.trace],
     searchSkipped,
     usage,
+    ...(selfVerification ? { selfVerification } : {}),
     timings: { extractionMs: Math.round(extractionMs), analysisMs: Math.round(analysisMs), totalMs: Math.round(performance.now() - state.started) },
   };
 }
@@ -288,4 +364,60 @@ function followUpFor(
   }
   if (leadAsked) return { title: clamp(`Follow up with ${leadName}`, MAX_TASK_TITLE), notes: null, intent };
   return null;
+}
+
+function toCandidates(analysis: AnalysisOutput, searchSkipped: boolean): CandidateRecommendation[] {
+  const candidates: CandidateRecommendation[] = [];
+  if (searchSkipped) return candidates;
+  for (const rec of analysis.recommendations) {
+    const propertyId = rec.propertyId.trim();
+    if (propertyId && !candidates.some((c) => c.propertyId === propertyId)) {
+      candidates.push({ propertyId, reason: clamp(rec.reason, MAX_REASON) });
+    }
+  }
+  return candidates;
+}
+
+interface VerificationInput {
+  requirements: ExtractedRequirements;
+  agencyId: string;
+  listings: ListingRecord[];
+  byId: Map<string, ListingRecord>;
+  seenPropertyIds: string[];
+  claimContext: { otherListings: ListingRecord[]; allowedAmountsAed: number[] };
+}
+
+function verificationInput(requirements: ExtractedRequirements, agencyId: string, listings: ListingRecord[], seen: ReadonlySet<string>): VerificationInput {
+  const band = budgetBand(requirements);
+  const allowedAmountsAed = [requirements.budgetMinAed, requirements.budgetMaxAed, band?.floorAed ?? null, band?.ceilingAed ?? null].filter(
+    (n): n is number => n !== null && n > 0,
+  );
+  return {
+    requirements,
+    agencyId,
+    listings,
+    byId: new Map(listings.map((l) => [l.id, l])),
+    seenPropertyIds: [...seen],
+    claimContext: { otherListings: listings, allowedAmountsAed },
+  };
+}
+
+/** The service's own recommendation validation, run early so the model can fix what it would drop. */
+function validationIssues(candidates: CandidateRecommendation[], v: VerificationInput): ClaimIssue[] {
+  const { dropped } = validateRecommendations({
+    candidates,
+    requirements: v.requirements,
+    agencyId: v.agencyId,
+    listings: v.listings,
+    agencyListings: v.listings,
+    seenPropertyIds: v.seenPropertyIds,
+  });
+  return dropped.map((d) => ({ propertyId: d.propertyId, reference: d.reference, kind: 'validation' as const, claim: d.reason, expected: d.detail }));
+}
+
+function claimIssues(candidates: CandidateRecommendation[], v: VerificationInput): ClaimIssue[] {
+  return candidates.flatMap((c) => {
+    const listing = v.byId.get(c.propertyId);
+    return listing ? checkReasonClaims(c.reason, listing, v.claimContext) : [];
+  });
 }

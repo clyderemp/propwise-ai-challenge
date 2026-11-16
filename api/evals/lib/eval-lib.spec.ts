@@ -1,4 +1,8 @@
-import { recommendationsWithin, costUsd, dubaiDate, expectedNextDayAt10, firstMondayAfterAt10, verdictOf, renderReport, yieldMentionsMatch } from './eval-lib';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { stableId } from '../../src/db/stable-id';
+import type { PropertyJson, RunJson } from './api';
+import { checkSelfVerification, recommendationsWithin, costUsd, dubaiDate, expectedNextDayAt10, firstMondayAfterAt10, verdictOf, renderReport, yieldMentionsMatch } from './eval-lib';
 
 describe('eval helpers', () => {
   it('gives the Asia/Dubai calendar date of an instant', () => {
@@ -67,5 +71,42 @@ describe('eval helpers', () => {
     expect(recommendationsWithin([], ['MBR-1009'])).toBe(true);
     expect(recommendationsWithin([], ['MBR-1009'], { nonEmpty: true })).toBe(false);
     expect(recommendationsWithin(['MBR-1009'], ['MBR-1009'], { nonEmpty: true })).toBe(true);
+  });
+});
+
+describe('checkSelfVerification (eval 16, over the recorded Karim trace)', () => {
+  const seed = JSON.parse(readFileSync(join(__dirname, '..', '..', '..', 'seed', 'properties.json'), 'utf8')) as Array<Omit<PropertyJson, 'id'>>;
+  // What GET /properties/:id returns, as the database holds it.
+  const db = new Map(seed.map((p) => [stableId('property', p.reference), { ...p, id: stableId('property', p.reference) } as PropertyJson]));
+  const recorded = JSON.parse(readFileSync(join(__dirname, '..', 'traces', '02-karim-matching.json'), 'utf8')) as { runs: Array<{ run: RunJson }> };
+  const SV = { checkedRecommendations: 3, issuesFound: [], revised: false, rounds: 0, fallbackReasons: [] };
+  const withSv = (run: RunJson, selfVerification: unknown): RunJson =>
+    ({ ...run, diagnostics: { ...run.diagnostics!, selfVerification } }) as RunJson;
+  const props = (run: RunJson) => run.recommendations.map((r) => db.get(r.propertyId)!);
+  const failed = (checks: Array<{ name: string; pass: boolean }>) => checks.filter((c) => !c.pass).map((c) => c.name);
+
+  it('passes the recorded run once it carries a self-verification record', () => {
+    const run = withSv(recorded.runs[0].run, SV);
+    const checks = checkSelfVerification(run, props(run));
+    expect(failed(checks)).toEqual([]);
+    expect(checks.filter((c) => /reason passes claim-check/.test(c.name))).toHaveLength(3);
+  });
+
+  it('fails a run stored without the record (the recorded trace predates it)', () => {
+    const run = recorded.runs[0].run;
+    expect(failed(checkSelfVerification(run, props(run)))).toEqual(['diagnostics.selfVerification has the expected shape']);
+  });
+
+  it('fails a shipped reason that disagrees with the database', () => {
+    const base = withSv(recorded.runs[0].run, SV);
+    const run = { ...base, recommendations: base.recommendations.map((r, i) => (i === 0 ? { ...r, reason: r.reason.replace('7.32%', '8.4%') } : r)) };
+    expect(failed(checkSelfVerification(run, props(run)))).toEqual(['MBR-1001: reason passes claim-check against the database']);
+  });
+
+  it('fails an inconsistent record: revised without a round, or issues with no revision and no reason why', () => {
+    const run = recorded.runs[0].run;
+    expect(failed(checkSelfVerification(withSv(run, { ...SV, revised: true }), props(run)))).toEqual(['diagnostics.selfVerification is consistent']);
+    const issue = { propertyId: 'x', reference: null, kind: 'yield', claim: '8%', expected: '7.32%' };
+    expect(failed(checkSelfVerification(withSv(run, { ...SV, issuesFound: [issue] }), props(run)))).toEqual(['diagnostics.selfVerification is consistent']);
   });
 });

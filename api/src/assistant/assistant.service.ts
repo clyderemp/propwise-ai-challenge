@@ -326,6 +326,7 @@ export class AssistantService implements OnApplicationBootstrap {
       budgetBand: validation.budgetBand,
       searchSkipped: outcome.searchSkipped,
       usage: outcome.usage ?? null,
+      selfVerification: outcome.selfVerification ?? null,
     };
     run.dataWarnings = dataWarnings;
     run.finishedAt = new Date();

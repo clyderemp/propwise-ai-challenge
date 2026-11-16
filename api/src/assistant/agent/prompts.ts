@@ -1,4 +1,4 @@
-import type { AgentMessage, BudgetBand, ExtractedRequirements } from '../assistant.types';
+import type { AgentMessage, BudgetBand, ClaimIssue, ExtractedRequirements } from '../assistant.types';
 
 /**
  * Prompts (plan 2.8). Short, and not what safety rests on: Phase A has no tools and never sees
@@ -76,5 +76,18 @@ export function analysisPrompt(input: {
     input.listingToolsAvailable
       ? 'Search the listings, then return your shortlist, summary and follow-up task.'
       : 'The lead gave no property criteria, so there is no listing search: recommend nothing. Return a summary and, if the lead wants contact, a follow-up task.',
+  ].join('\n');
+}
+
+/**
+ * The one revision turn of the self-verification loop: the issues code found in the first answer,
+ * as data. Sent in the same conversation, after the model's own answer.
+ */
+export function revisionPrompt(issues: readonly ClaimIssue[]): string {
+  const data = issues.map(({ propertyId, reference, kind, claim, expected }) => ({ propertyId, reference, kind, claim, expected }));
+  return [
+    `<claim_issues>${JSON.stringify(data)}</claim_issues>`,
+    'Code checked your answer against the listing data and found the issues in <claim_issues>. "claim" is what you wrote and "expected" is what the data says. A "validation" issue names a listing that cannot be recommended ("claim" is why, "expected" the detail).',
+    'Return the whole answer again in the same format with every issue fixed: correct each reason from the tool results, and drop listings with a validation issue. Keep everything else as it was. Answer now, without calling tools.',
   ].join('\n');
 }

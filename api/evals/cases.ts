@@ -2,11 +2,11 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { stableId } from '../src/db/stable-id';
 import type { ApiClient, RunJson, TaskJson, TimedRun } from './lib/api';
-import { Assertion, expectedNextDayAt10, firstMondayAfterAt10, recommendationsWithin } from './lib/eval-lib';
+import { Assertion, checkSelfVerification, expectedNextDayAt10, firstMondayAfterAt10, recommendationsWithin } from './lib/eval-lib';
 import type { ReasonToGrade } from './lib/grader';
 
 /**
- * The 15 eval cases (plan 2.13 and step 5, with the section 7 rulings). Gating assertions check only
+ * The eval cases (15 from plan 2.13 and step 5, with the section 7 rulings, plus 16-self-verification). Gating assertions check only
  * what code guarantees, or subset relations where the model has a choice, so verdicts repeat on a
  * freshly seeded database. Each case records its runs (with full traces) for evals/traces/<case>.json.
  */
@@ -523,6 +523,20 @@ export const CASES: EvalCase[] = [
         const approve = await ctx.api.decide(ctx.sara, nadia, r.id, action.id, 'approve');
         rec.check("Sara: approving Omar's action is 404", approve.status === 404, `HTTP ${approve.status}`);
       }
+    },
+  },  {
+    id: '16-self-verification',
+    title: 'Self-verification: every shipped reason matches the data (Karim)',
+    covers: 'self-verification',
+    async run(ctx, rec) {
+      const { run } = await ctx.karim();
+      const r = rec.use(run);
+      if (!checkCompleted(rec, run)) return;
+      // Re-read each recommended listing from the API (the database), never from the run.
+      const recommended = await Promise.all(r.recommendations.map((x) => ctx.api.property(ctx.sara, x.propertyId)));
+      for (const c of checkSelfVerification(r, recommended)) rec.check(`${run.label}: ${c.name}`, c.pass, c.detail);
+      const sv = r.diagnostics?.selfVerification;
+      rec.info(`${run.label}: self-verification found ${sv?.issuesFound.length ?? 0} issue(s), ${sv?.fallbackReasons.length ?? 0} fallback reason(s)`, true, JSON.stringify(sv ?? null));
     },
   },
 ];

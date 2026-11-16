@@ -149,6 +149,19 @@ describe('AI assistant API (scripted agent)', () => {
       expect(run.diagnostics.usage).toEqual({ inputTokens: 1000, outputTokens: 200, totalTokens: 1200 });
     });
 
+    it("stores the agent's self-verification record in diagnostics, never in the trace", async () => {
+      const run = await startRun(sara, KARIM);
+      expect(run.diagnostics.selfVerification).toEqual({
+        checkedRecommendations: expect.any(Number),
+        issuesFound: [],
+        revised: false,
+        rounds: 0,
+        fallbackReasons: [],
+      });
+      expect(run.diagnostics.selfVerification.checkedRecommendations).toBeGreaterThan(0);
+      expect(JSON.stringify(run.trace)).not.toContain('selfVerification');
+    });
+
     it('accepts an explicit messageId of the lead', async () => {
       const run = await startRun(sara, KARIM, { messageId: KARIM_MESSAGE });
       expect(run.messageId).toBe(KARIM_MESSAGE);
