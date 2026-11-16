@@ -1,5 +1,5 @@
 import { APICallError, generateText, LoadAPIKeyError, NoObjectGeneratedError, NoOutputGeneratedError, Output, RetryError, stepCountIs, StepResult, ToolSet } from 'ai';
-import type { LanguageModel } from 'ai';
+import type { LanguageModel, LanguageModelUsage, SystemModelMessage } from 'ai';
 import {
   AgentFailureKind,
   AgentFollowUp,
@@ -55,9 +55,27 @@ export interface RunAgentDeps {
 }
 
 export interface AgentUsage {
+  /** Whole prompt: uncached + cache read + cache write. */
   inputTokens: number;
   outputTokens: number;
   totalTokens: number;
+  cacheReadTokens: number;
+  cacheWriteTokens: number;
+}
+
+/**
+ * Prompt caching (claude-api skill, shared/prompt-caching.md). Render order is tools -> system ->
+ * messages, and both system prompts and all tool definitions are constants, so that prefix is
+ * byte-identical for every lead and agency; everything per-lead lives in the messages. One explicit
+ * breakpoint on the system block makes tools + system a guaranteed read point (shared across runs).
+ * Phase B also turns on top-level automatic caching, whose breakpoint moves to the newest message on
+ * every step, so step N reads what step N-1 wrote. Phase A gets no automatic breakpoint: its prompt
+ * ends in the unique message, and caching it would only pay the 1.25x write premium.
+ */
+const EPHEMERAL = { type: 'ephemeral' } as const;
+
+function cachedSystem(text: string): SystemModelMessage {
+  return { role: 'system', content: text, providerOptions: { anthropic: { cacheControl: EPHEMERAL } } };
 }
 
 export interface ClaudeAgentOutcome extends AgentOutcome {
@@ -112,10 +130,12 @@ function clamp(text: string, max: number): string {
   return t.length > max ? t.slice(0, max) : t;
 }
 
-function addUsage(total: AgentUsage, u: { inputTokens?: number; outputTokens?: number; totalTokens?: number }): void {
+function addUsage(total: AgentUsage, u: LanguageModelUsage): void {
   total.inputTokens += u.inputTokens ?? 0;
   total.outputTokens += u.outputTokens ?? 0;
   total.totalTokens += u.totalTokens ?? (u.inputTokens ?? 0) + (u.outputTokens ?? 0);
+  total.cacheReadTokens += u.inputTokenDetails?.cacheReadTokens ?? 0;
+  total.cacheWriteTokens += u.inputTokenDetails?.cacheWriteTokens ?? 0;
 }
 
 function describeApiError(e: APICallError): string {
@@ -187,7 +207,7 @@ async function recordRejectedCalls(step: StepResult<ToolSet>, recorder: ToolReco
 export async function runAssistantAgent(ctx: AgentRunContext, deps: RunAgentDeps): Promise<ClaudeAgentOutcome> {
   const limits: RunLimits = { ...DEFAULT_LIMITS, ...deps.limits };
   const recorder = new ToolRecorder(ctx.trace);
-  const usage: AgentUsage = { inputTokens: 0, outputTokens: 0, totalTokens: 0 };
+  const usage: AgentUsage = { inputTokens: 0, outputTokens: 0, totalTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 };
   const state = new RunState(limits, recorder, usage, ctx.signal);
   const common = { maxRetries: limits.maxRetries, abortSignal: state.signal, timeout: { stepMs: limits.stepTimeoutMs } };
 
@@ -201,7 +221,7 @@ export async function runAssistantAgent(ctx: AgentRunContext, deps: RunAgentDeps
     const result = await generateText({
       ...common,
       model,
-      system: EXTRACTION_SYSTEM,
+      system: cachedSystem(EXTRACTION_SYSTEM),
       prompt: extractionPrompt({ message: ctx.message, thread: ctx.thread, agencyAreas }),
       output: Output.object({ schema: extractionSchema }),
       maxOutputTokens: EXTRACTION_MAX_TOKENS,
@@ -227,7 +247,7 @@ export async function runAssistantAgent(ctx: AgentRunContext, deps: RunAgentDeps
     const result = await generateText({
       ...common,
       model,
-      system: ANALYSIS_SYSTEM,
+      system: cachedSystem(ANALYSIS_SYSTEM),
       prompt: analysisPrompt({
         leadName: ctx.lead.name,
         message: ctx.message,
@@ -240,7 +260,7 @@ export async function runAssistantAgent(ctx: AgentRunContext, deps: RunAgentDeps
       onStepFinish: (step) => recordRejectedCalls(step, recorder),
       output: Output.object({ schema: analysisSchema }),
       maxOutputTokens: ANALYSIS_MAX_TOKENS,
-      providerOptions: { anthropic: { effort: ANALYSIS_EFFORT } },
+      providerOptions: { anthropic: { effort: ANALYSIS_EFFORT, cacheControl: EPHEMERAL } },
     });
     addUsage(usage, result.totalUsage);
     if (recorder.failure) throw state.toRunError(null);

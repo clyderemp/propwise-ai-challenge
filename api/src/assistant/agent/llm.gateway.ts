@@ -24,13 +24,17 @@ type Env = Readonly<Record<string, string | undefined>>;
 export class AnthropicLlmGateway implements LlmGateway {
   readonly modelId: string;
 
-  constructor(private readonly env: Env = process.env) {
+  constructor(
+    private readonly env: Env = process.env,
+    /** Test seam: a fetch that captures the request bodies the provider sends. */
+    private readonly options: { fetch?: typeof fetch } = {},
+  ) {
     this.modelId = env.ASSISTANT_MODEL?.trim() || DEFAULT_ASSISTANT_MODEL;
   }
 
   languageModel(): LanguageModel {
     const apiKey = this.env.ANTHROPIC_API_KEY?.trim();
     if (!apiKey) throw new AgentRunError('model', NOT_CONFIGURED_MESSAGE);
-    return createAnthropic({ apiKey })(this.modelId);
+    return createAnthropic({ apiKey, ...(this.options.fetch ? { fetch: this.options.fetch } : {}) })(this.modelId);
   }
 }
