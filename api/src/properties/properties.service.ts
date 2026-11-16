@@ -23,10 +23,15 @@ export class PropertiesService {
     if (query.area) qb.andWhere({ area: { $ilike: escapeLike(query.area.trim()) } });
     if (query.q) {
       const pattern = `%${escapeLike(query.q.trim())}%`;
-      qb.andWhere({ title: { $ilike: pattern } })
-        .orWhere({ area: { $ilike: pattern } })
-        .orWhere({ building: { $ilike: pattern } })
-        .orWhere({ reference: { $ilike: pattern } });
+      // One grouped OR: chained orWhere() would OR against the agency filter and leak other agencies' listings.
+      qb.andWhere({
+        $or: [
+          { title: { $ilike: pattern } },
+          { area: { $ilike: pattern } },
+          { building: { $ilike: pattern } },
+          { reference: { $ilike: pattern } },
+        ],
+      });
     }
     if (query.type) qb.andWhere({ type: query.type });
     if (query.status) qb.andWhere({ status: query.status });
