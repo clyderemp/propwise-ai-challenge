@@ -42,6 +42,7 @@ export const DROP_REASONS = [
   'not_available', // reserved or sold
   'rent_intent', // the lead wants to rent; every listing is for sale
   'no_criteria', // nothing was extracted to match against
+  'not_requested', // the lead only named listing codes, and this is not one of them
   'area_mismatch',
   'bedrooms_mismatch',
   'type_mismatch',
