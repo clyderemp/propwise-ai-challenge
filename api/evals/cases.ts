@@ -295,7 +295,15 @@ export const CASES: EvalCase[] = [
       const expected = firstMondayAfterAt10(sentAt);
       rec.check(`dueAt is the first Monday after the sent date: ${expected}`, action?.task.dueAt === expected, json(action?.task.dueAt));
       rec.check('needsClarification is null', action?.needsClarification === null, json(action?.needsClarification));
-      checkSubset(rec, run, ['MBR-1009'], { nonEmpty: true });
+      // James found the Marina Gate 2 unit "a bit small" and MBR-1009 is the Marina Gate 2 1BR, the only fit.
+      // Recommending it or recommending nothing are both defensible; an empty list must say why.
+      checkSubset(rec, run, ['MBR-1009']);
+      const jamesRefs = recommendedRefs(r);
+      rec.check(
+        'recommends MBR-1009, or recommends nothing and the summary explains it (names MBR-1009 / Marina Gate 2)',
+        jamesRefs.length > 0 || /MBR-1009|Marina Gate 2/i.test(r.summary),
+        `[${jamesRefs.join(', ')}] summary: ${r.summary}`,
+      );
       const locations = r.requirements.locations;
       rec.check('locations within {Dubai Marina, Jumeirah Lake Towers} and not empty', locations.length > 0 && locations.every((l) => ['Dubai Marina', 'Jumeirah Lake Towers'].includes(l)), json(locations));
       rec.check('bedrooms is 1', r.requirements.bedrooms === 1, json(r.requirements.bedrooms));
