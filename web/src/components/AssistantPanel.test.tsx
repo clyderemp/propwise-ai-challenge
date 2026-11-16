@@ -1,5 +1,6 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { ApiError, type AssistantRun, type LeadDetail, type ProposedAction, type Task } from '@/lib/api';
+import { API_URL } from '@/lib/api';
 import { AssistantPanel, type AssistantClient } from './AssistantPanel';
 
 const lead: LeadDetail = {
@@ -294,7 +295,7 @@ describe('AssistantPanel', () => {
       getRun: vi.fn().mockResolvedValue(completedRun()),
     });
     renderPanel(client);
-    expect(await screen.findByRole('status')).toHaveTextContent('1 tool call(s) so far');
+    expect(await screen.findByRole('list', { name: 'Steps so far' })).toHaveTextContent('search_listings');
     expect(await screen.findByText(/two listings fit/, undefined, { timeout: 3000 })).toBeInTheDocument();
     expect(client.getRun).toHaveBeenCalledWith('tok', 'lead-1', 'run-1');
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
@@ -312,5 +313,130 @@ describe('AssistantPanel', () => {
     );
     expect(screen.getByRole('button', { name: 'Analyse latest message' })).toBeDisabled();
     expect(screen.getByText('This lead has not sent a message yet.')).toBeInTheDocument();
+  });
+
+  describe('background runs', () => {
+    const running = (overrides: Partial<AssistantRun> = {}) =>
+      completedRun({ status: 'running', requirements: completedRun().requirements, recommendations: [], proposedActions: [], summary: '', trace: [], ...overrides });
+    const search = { tool: 'search_listings', input: { areas: ['Dubai Marina'], minBedrooms: 2, type: null }, output: { items: [] }, durationMs: 45 };
+    const details = { tool: 'get_listing_details', input: { propertyId: 'prop-1' }, error: 'Database unavailable', durationMs: 12 };
+
+    /** getRun answers one poll at a time, when the test says so. */
+    function stepper() {
+      const pending: Array<(run: AssistantRun) => void> = [];
+      const getRun = vi.fn<AssistantClient['getRun']>(() => new Promise<AssistantRun>((resolve) => pending.push(resolve)));
+      const answer = async (run: AssistantRun) => {
+        await waitFor(() => expect(pending.length).toBeGreaterThan(0));
+        await act(async () => pending.shift()!(run));
+      };
+      return { getRun, answer };
+    }
+
+    function renderPolling(client: AssistantClient) {
+      render(
+        <AssistantPanel lead={lead} token="tok" timeZone="Asia/Dubai" client={client} onApproved={vi.fn()} pollIntervalMs={5} />,
+      );
+    }
+
+    it('shows each tool step as it happens (tool, short input, duration, ok or error), then the result', async () => {
+      const { getRun, answer } = stepper();
+      const client = fakeClient({ startRun: vi.fn().mockResolvedValue(running()), getRun });
+      renderPolling(client);
+      await analyse();
+
+      expect(await screen.findByRole('status')).toHaveTextContent(/Analysing/);
+      expect(screen.getByRole('button', { name: /Analysing/ })).toBeDisabled();
+
+      await answer(running({ trace: [search] }));
+      let steps = screen.getByRole('list', { name: 'Steps so far' });
+      expect(within(steps).getAllByRole('listitem')).toHaveLength(1);
+      expect(steps).toHaveTextContent('search_listings');
+      expect(steps).toHaveTextContent('areas: Dubai Marina, minBedrooms: 2');
+      expect(steps).toHaveTextContent('45 ms');
+      expect(steps).toHaveTextContent('ok');
+
+      await answer(running({ trace: [search, details] }));
+      steps = screen.getByRole('list', { name: 'Steps so far' });
+      const items = within(steps).getAllByRole('listitem');
+      expect(items).toHaveLength(2);
+      expect(items[1]).toHaveTextContent('get_listing_details');
+      expect(items[1]).toHaveTextContent('propertyId: prop-1');
+      expect(items[1]).toHaveTextContent('failed: Database unavailable');
+
+      await answer(completedRun());
+      expect(screen.getByText(/two listings fit/)).toBeInTheDocument();
+      expect(screen.queryByRole('list', { name: 'Steps so far' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('status')).not.toBeInTheDocument();
+      expect(getRun).toHaveBeenCalledWith('tok', 'lead-1', 'run-1');
+      const calls = getRun.mock.calls.length;
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      expect(getRun).toHaveBeenCalledTimes(calls);
+    });
+
+    it('ends on the failed view when the background run fails', async () => {
+      const { getRun, answer } = stepper();
+      const client = fakeClient({ startRun: vi.fn().mockResolvedValue(running()), getRun });
+      renderPolling(client);
+      await analyse();
+      await answer({ ...running({ trace: [details] }), status: 'failed', error: 'Tool get_listing_details failed: Database unavailable' });
+      expect(screen.getByText('The analysis failed. Nothing was saved; try again.')).toBeInTheDocument();
+      expect(screen.getByText('Tool get_listing_details failed: Database unavailable')).toBeInTheDocument();
+    });
+
+    it('on 409 attaches to the run already in progress instead of failing', async () => {
+      const { getRun, answer } = stepper();
+      const conflict = new ApiError(409, 'An analysis is already running for this lead.', { statusCode: 409, runId: 'run-7' });
+      const client = fakeClient({ startRun: vi.fn().mockRejectedValue(conflict), getRun });
+      renderPolling(client);
+      await analyse();
+
+      await answer(running({ id: 'run-7', trace: [search] }));
+      expect(getRun).toHaveBeenCalledWith('tok', 'lead-1', 'run-7');
+      expect(screen.getByRole('list', { name: 'Steps so far' })).toHaveTextContent('search_listings');
+      expect(screen.getByRole('status')).toHaveTextContent(/already running/i);
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+
+      await answer(completedRun({ id: 'run-7' }));
+      expect(screen.getByText(/two listings fit/)).toBeInTheDocument();
+      expect(getRun.mock.calls.every(([, , runId]) => runId === 'run-7')).toBe(true);
+    });
+
+    it('shows the error when a 409 does not name a run', async () => {
+      const client = fakeClient({ startRun: vi.fn().mockRejectedValue(new ApiError(409, 'Conflict')) });
+      renderPolling(client);
+      await analyse();
+      expect(await screen.findByRole('alert')).toHaveTextContent('Conflict');
+      expect(client.getRun).not.toHaveBeenCalled();
+    });
+
+    it('stops polling when the panel unmounts', async () => {
+      const getRun = vi.fn().mockResolvedValue(running({ trace: [search] }));
+      const client = fakeClient({ latestRun: vi.fn().mockResolvedValue(running()), getRun });
+      const { unmount } = render(
+        <AssistantPanel lead={lead} token="tok" timeZone="Asia/Dubai" client={client} onApproved={vi.fn()} pollIntervalMs={5} />,
+      );
+      await waitFor(() => expect(getRun.mock.calls.length).toBeGreaterThanOrEqual(2));
+      unmount();
+      const calls = getRun.mock.calls.length;
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      expect(getRun).toHaveBeenCalledTimes(calls);
+    });
+
+    it('the default client starts runs in the background (?async=true)', async () => {
+      const fetchMock = vi.fn<typeof fetch>(async (input) => {
+        const url = String(input);
+        if (url.endsWith('?async=true')) return new Response(JSON.stringify(completedRun()), { status: 202 });
+        return new Response('[]', { status: 200 });
+      });
+      vi.stubGlobal('fetch', fetchMock);
+      try {
+        render(<AssistantPanel lead={lead} token="tok" timeZone="Asia/Dubai" onApproved={vi.fn()} />);
+        await analyse();
+        expect(await screen.findByText(/two listings fit/)).toBeInTheDocument();
+        expect(fetchMock.mock.calls.map(([url]) => String(url))).toContain(`${API_URL}/leads/lead-1/assistant/runs?async=true`);
+      } finally {
+        vi.unstubAllGlobals();
+      }
+    });
   });
 });

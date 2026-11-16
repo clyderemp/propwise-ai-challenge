@@ -163,6 +163,8 @@ export class ApiError extends Error {
   constructor(
     readonly status: number,
     message: string,
+    /** The parsed error body, e.g. { runId } on a 409 from a background start. */
+    readonly body: unknown = null,
   ) {
     super(message);
   }
@@ -180,7 +182,7 @@ async function send(path: string, token: string | null, init: RequestInit = {}):
   if (!response.ok) {
     const body = (await response.json().catch(() => null)) as { message?: string | string[] } | null;
     const message = Array.isArray(body?.message) ? body.message.join(', ') : body?.message;
-    throw new ApiError(response.status, message ?? `Request failed with ${response.status}`);
+    throw new ApiError(response.status, message ?? `Request failed with ${response.status}`, body);
   }
   return response;
 }
@@ -211,6 +213,15 @@ export const api = {
   /** Synchronous run: the API answers when the run has completed or failed (up to ~2 minutes). */
   startAssistantRun: (token: string, leadId: string, messageId?: string) =>
     request<AssistantRun>(`/leads/${enc(leadId)}/assistant/runs`, token, {
+      method: 'POST',
+      body: JSON.stringify(messageId ? { messageId } : {}),
+    }),
+  /**
+   * Background run (`?async=true`): 202 with the run in status 'running'; poll getAssistantRun until it ends.
+   * A 409 means the lead already has a run in progress: its id is in the ApiError body as `runId`.
+   */
+  startBackgroundAssistantRun: (token: string, leadId: string, messageId?: string) =>
+    request<AssistantRun>(`/leads/${enc(leadId)}/assistant/runs?async=true`, token, {
       method: 'POST',
       body: JSON.stringify(messageId ? { messageId } : {}),
     }),

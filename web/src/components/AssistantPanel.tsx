@@ -11,12 +11,14 @@ import {
   type ProposedAction,
   type Recommendation,
   type Task,
+  type TraceEntry,
 } from '@/lib/api';
-import { formatAed, formatDueDate } from '@/lib/format';
+import { formatAed, formatDueDate, shortInput } from '@/lib/format';
 
 /** The calls the panel makes. Injected in tests; defaults to the real API client. */
 export interface AssistantClient {
   latestRun(token: string, leadId: string): Promise<AssistantRun | null>;
+  /** Starts a run; the default starts it in the background (202, status 'running') and the panel polls it. */
   startRun(token: string, leadId: string): Promise<AssistantRun>;
   getRun(token: string, leadId: string, runId: string): Promise<AssistantRun>;
   approveAction(
@@ -30,7 +32,7 @@ export interface AssistantClient {
 
 export const defaultAssistantClient: AssistantClient = {
   latestRun: api.latestAssistantRun,
-  startRun: (token, leadId) => api.startAssistantRun(token, leadId),
+  startRun: (token, leadId) => api.startBackgroundAssistantRun(token, leadId),
   getRun: api.getAssistantRun,
   approveAction: api.approveAssistantAction,
   rejectAction: api.rejectAssistantAction,
@@ -45,9 +47,18 @@ interface Props {
   onApproved: (task: Task) => void | Promise<void>;
   onUnauthorized?: () => void;
   client?: AssistantClient;
+  /** How often a running run is polled. Tests shorten it. */
+  pollIntervalMs?: number;
 }
 
 const POLL_MS = 1_500;
+
+/** The id of the running run named by a 409 from a background start, if any. */
+function runningRunId(cause: unknown): string | null {
+  if (!(cause instanceof ApiError) || cause.status !== 409) return null;
+  const body = cause.body as { runId?: unknown } | null;
+  return typeof body?.runId === 'string' ? body.runId : null;
+}
 
 type Decision = { actionId: string; kind: 'approve' | 'reject' };
 
@@ -58,6 +69,7 @@ export function AssistantPanel({
   onApproved,
   onUnauthorized,
   client = defaultAssistantClient,
+  pollIntervalMs = POLL_MS,
 }: Props) {
   const titleId = useId();
   const hasInbound = lead.messages.some((message) => message.direction === 'inbound');
@@ -65,6 +77,7 @@ export function AssistantPanel({
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [decision, setDecision] = useState<Decision | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   // Once Sara starts a run, a late answer for the "latest run" must not replace it.
   const userStarted = useRef(false);
 
@@ -89,7 +102,7 @@ export function AssistantPanel({
     };
   }, [client, token, lead.id]);
 
-  // A background run (status 'running') is polled until it finishes.
+  // A background run (status 'running') is polled until it finishes; unmounting stops the polling.
   const runningId = run?.status === 'running' ? run.id : null;
   useEffect(() => {
     if (!runningId) return;
@@ -103,22 +116,35 @@ export function AssistantPanel({
         .catch((cause: unknown) => {
           if (!cancelled) reportError(cause, 'Lost track of the running analysis.');
         });
-    }, POLL_MS);
+    }, pollIntervalMs);
     return () => {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [client, token, lead.id, runningId, run]);
+  }, [client, token, lead.id, runningId, run, pollIntervalMs]);
 
   async function analyse() {
     userStarted.current = true;
     setStarting(true);
     setError(null);
+    setNotice(null);
     try {
       setRun(await client.startRun(token, lead.id));
     } catch (cause) {
-      setRun(null);
-      reportError(cause, 'The analysis could not be started.');
+      const existing = runningRunId(cause);
+      if (existing) {
+        // One background run per lead: follow the one already in progress instead of failing.
+        setNotice('An analysis was already running for this lead. Showing its progress.');
+        try {
+          setRun(await client.getRun(token, lead.id, existing));
+        } catch (reloadCause) {
+          setRun(null);
+          reportError(reloadCause, 'Could not load the running analysis.');
+        }
+      } else {
+        setRun(null);
+        reportError(cause, 'The analysis could not be started.');
+      }
     } finally {
       setStarting(false);
     }
@@ -189,9 +215,11 @@ export function AssistantPanel({
       {analysing && (
         <p role="status" className="mt-3 text-sm text-gray-600">
           Analysing… this can take up to a minute.
-          {run?.status === 'running' && run.trace.length > 0 && ` ${run.trace.length} tool call(s) so far.`}
+          {notice && ` ${notice}`}
         </p>
       )}
+
+      {run?.status === 'running' && run.trace.length > 0 && <LiveSteps trace={run.trace} />}
 
       {error && (
         <p role="alert" className="mt-3 rounded-md bg-red-50 p-2 text-sm text-red-700">
@@ -313,6 +341,26 @@ function CompletedRun({
         </details>
       )}
     </div>
+  );
+}
+
+/** The tool calls of a running run, as they happen. */
+function LiveSteps({ trace }: { trace: TraceEntry[] }) {
+  return (
+    <ol aria-label="Steps so far" className="mt-2 space-y-1 text-xs text-gray-600">
+      {trace.map((entry, index) => (
+        <li key={index} className="flex flex-wrap gap-x-2">
+          <span className="font-mono text-gray-900">{entry.tool}</span>
+          {shortInput(entry.input) && <span>{shortInput(entry.input)}</span>}
+          <span>{entry.durationMs} ms</span>
+          {entry.error ? (
+            <span className="text-red-700">failed: {entry.error}</span>
+          ) : (
+            <span className="text-green-700">ok</span>
+          )}
+        </li>
+      ))}
+    </ol>
   );
 }
 

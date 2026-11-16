@@ -28,3 +28,21 @@ export function formatDueDate(iso: string, timeZone: string): string {
   const part = (type: Intl.DateTimeFormatPartTypes) => parts.find((p) => p.type === type)?.value ?? '';
   return `${part('weekday')} ${part('day')} ${part('month')} ${part('year')}, ${part('hour')}:${part('minute')}`;
 }
+
+/** A one-line view of a tool input: "key: value" for each set field, arrays joined by "/", cut to `max` chars. */
+export function shortInput(input: unknown, max = 80): string {
+  const value = (v: unknown): string => {
+    if (Array.isArray(v)) return v.map(value).join('/');
+    if (v !== null && typeof v === 'object') return JSON.stringify(v);
+    return String(v);
+  };
+  let text: string;
+  if (input === null || input === undefined) text = '';
+  else if (typeof input === 'object' && !Array.isArray(input)) {
+    text = Object.entries(input as Record<string, unknown>)
+      .filter(([, v]) => v !== null && v !== undefined && v !== '' && !(Array.isArray(v) && v.length === 0))
+      .map(([k, v]) => `${k}: ${value(v)}`)
+      .join(', ');
+  } else text = value(input);
+  return text.length > max ? `${text.slice(0, max - 1)}…` : text;
+}

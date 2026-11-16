@@ -62,4 +62,21 @@ describe('assistant API client', () => {
     fetchMock.mockResolvedValueOnce(jsonResponse(500, { message: 'boom' }));
     await expect(api.latestAssistantRun('tok', 'lead-1')).rejects.toMatchObject({ status: 500 });
   });
+
+  it('starts a background run with ?async=true and returns the 202 body', async () => {
+    fetchMock.mockResolvedValue(jsonResponse(202, { id: 'run-1', status: 'running' }));
+    const run = await api.startBackgroundAssistantRun('tok', 'lead-1');
+    const [url, init] = fetchMock.mock.calls[0]!;
+    expect(url).toBe(`${API_URL}/leads/lead-1/assistant/runs?async=true`);
+    expect(init?.method).toBe('POST');
+    expect(init?.body).toBe('{}');
+    expect(run).toEqual({ id: 'run-1', status: 'running' });
+  });
+
+  it('keeps the error body on an ApiError, so a 409 can name the running run', async () => {
+    fetchMock.mockResolvedValue(jsonResponse(409, { statusCode: 409, message: 'Already running', runId: 'run-7' }));
+    const error = await api.startBackgroundAssistantRun('tok', 'lead-1').catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(ApiError);
+    expect(error).toMatchObject({ status: 409, message: 'Already running', body: { runId: 'run-7' } });
+  });
 });
