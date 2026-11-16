@@ -73,6 +73,70 @@ export interface Task {
   createdAt: string;
 }
 
+export interface AssistantRequirements {
+  locations: string[];
+  bedrooms: number | null;
+  budgetAed: { min: number | null; max: number | null };
+  propertyType: Property['type'] | null;
+  intent: 'buy' | 'rent' | 'unknown';
+  preferences: string[];
+}
+
+export interface ProposedAction {
+  id: string;
+  type: 'create_follow_up_task';
+  status: 'pending_approval' | 'approved' | 'rejected';
+  task: { title: string; notes: string | null; dueAt: string | null };
+  needsClarification: string | null;
+}
+
+export type ListingFlag = 'rent_missing' | 'price_suspect' | 'possible_duplicate' | 'instruction_like_text';
+
+/** Extra field: the API attaches the listing's facts so the app needs no extra request per recommendation. */
+export interface PropertySnapshot {
+  reference: string;
+  title: string;
+  area: string;
+  building: string | null;
+  type: Property['type'];
+  bedrooms: number;
+  sizeSqft: number;
+  priceAed: number;
+  annualRentAed: number | null;
+  grossYieldPct: number | null;
+  status: Property['status'];
+  flags: ListingFlag[];
+}
+
+export interface Recommendation {
+  propertyId: string;
+  reason: string;
+  property?: PropertySnapshot;
+}
+
+export interface DataWarning {
+  propertyId: string;
+  reference: string;
+  flags: ListingFlag[];
+}
+
+export interface AssistantRun {
+  id: string;
+  leadId: string;
+  messageId: string;
+  status: 'running' | 'completed' | 'failed';
+  error?: string;
+  requirements: AssistantRequirements;
+  /** Best first; empty when nothing fits (or when the run failed). */
+  recommendations: Recommendation[];
+  summary: string;
+  proposedActions: ProposedAction[];
+  trace: Array<{ tool: string; input: unknown; output?: unknown; error?: string; durationMs: number }>;
+  createdAt: string;
+  model?: string | null;
+  dataWarnings?: DataWarning[];
+}
+
 export interface Page<T> {
   items: T[];
   total: number;
@@ -138,4 +202,39 @@ export const api = {
   updateTask: (token: string, taskId: string, changes: Partial<Pick<Task, 'status'>>) =>
     request<Task>(`/tasks/${taskId}`, token, { method: 'PATCH', body: JSON.stringify(changes) }),
   getProperty: (token: string, propertyId: string) => request<Property>(`/properties/${propertyId}`, token),
+  startAssistantRun: (token: string, leadId: string, messageId?: string) =>
+    request<AssistantRun>(`/leads/${leadId}/assistant/runs`, token, {
+      method: 'POST',
+      body: JSON.stringify(messageId ? { messageId } : {}),
+    }),
+  getAssistantRun: (token: string, leadId: string, runId: string) =>
+    request<AssistantRun>(`/leads/${leadId}/assistant/runs/${runId}`, token),
+  /**
+   * Newest runs first. This list endpoint is an extra beyond the required contract, so a 404/405 (not
+   * deployed) reads as "no runs yet"; every other error, 401 included, is passed on.
+   */
+  listAssistantRuns: async (token: string, leadId: string, limit = 1): Promise<AssistantRun[]> => {
+    try {
+      const body = await request<AssistantRun[] | { items: AssistantRun[] }>(
+        `/leads/${leadId}/assistant/runs?limit=${limit}`,
+        token,
+      );
+      return Array.isArray(body) ? body : body.items;
+    } catch (err) {
+      if (err instanceof ApiError && (err.status === 404 || err.status === 405)) return [];
+      throw err;
+    }
+  },
+  approveAssistantAction: (token: string, leadId: string, runId: string, actionId: string) =>
+    request<{ action: ProposedAction; task: Task }>(
+      `/leads/${leadId}/assistant/runs/${runId}/actions/${actionId}/approve`,
+      token,
+      { method: 'POST', body: '{}' },
+    ),
+  rejectAssistantAction: (token: string, leadId: string, runId: string, actionId: string) =>
+    request<{ action: ProposedAction }>(
+      `/leads/${leadId}/assistant/runs/${runId}/actions/${actionId}/reject`,
+      token,
+      { method: 'POST', body: '{}' },
+    ),
 };
