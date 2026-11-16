@@ -43,6 +43,11 @@ export default function LeadScreen() {
     }
   }
 
+  const loadTasks = useCallback(async () => {
+    if (!session) return;
+    setTasks(await api.listTasks(session.token, id));
+  }, [session, id]);
+
   if (!session) return <Redirect href="/login" />;
   const timeZone = session.agent.timezone;
 
@@ -60,7 +65,13 @@ export default function LeadScreen() {
           <Text style={styles.meta}>{[lead.phone, lead.email, `via ${lead.source}`].filter(Boolean).join(' · ')}</Text>
           {lead.notes && <Text style={styles.meta}>{lead.notes}</Text>}
 
-          <AssistantPanel lead={lead} />
+          <AssistantPanel
+            lead={lead}
+            token={session.token}
+            timeZone={timeZone}
+            onTaskCreated={loadTasks}
+            onUnauthorized={logout}
+          />
 
           <Text style={styles.section}>Conversation</Text>
           <MessageThread messages={lead.messages} timeZone={timeZone} />
