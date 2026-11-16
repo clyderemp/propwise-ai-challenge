@@ -106,8 +106,10 @@ export function AssistantPanel({ lead, token, timeZone, onTaskCreated, onUnautho
       });
   }, [token, lead.id, handleError]);
 
-  // A background run: re-read it until it is no longer running.
+  // A background run: re-read it until it is no longer running. A failed read is retried with
+  // backoff (up to 8x the interval); only a 401 (handled by logging out) or unmounting stops it.
   const runningId = run?.status === 'running' ? run.id : null;
+  const [pollFailures, setPollFailures] = useState(0);
   useEffect(() => {
     if (!runningId) return;
     const started = generation.current;
@@ -115,15 +117,29 @@ export function AssistantPanel({ lead, token, timeZone, onTaskCreated, onUnautho
       api
         .getAssistantRun(token, lead.id, runningId)
         .then((next) => {
-          if (mounted.current && generation.current === started) setRun(next);
+          if (!mounted.current || generation.current !== started) return;
+          if (pollFailures > 0) {
+            setPollFailures(0);
+            setError(null);
+          }
+          setRun(next);
         })
-        .catch(handleError);
-    }, RUN_POLL_INTERVAL_MS);
+        .catch((err: unknown) => {
+          if (!mounted.current || generation.current !== started) return;
+          if (err instanceof ApiError && err.status === 401) {
+            handleError(err);
+            return;
+          }
+          setError('Lost contact with the server while the analysis runs. Retrying…');
+          setPollFailures((n) => n + 1);
+        });
+    }, RUN_POLL_INTERVAL_MS * Math.min(2 ** pollFailures, 8));
     return () => clearTimeout(timer);
-  }, [runningId, run, token, lead.id, handleError]);
+  }, [runningId, run, token, lead.id, handleError, pollFailures]);
 
   async function analyse() {
     const mine = ++generation.current;
+    setPollFailures(0);
     setStarting(true);
     setError(null);
     try {

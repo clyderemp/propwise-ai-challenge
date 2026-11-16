@@ -52,6 +52,8 @@ interface Props {
 }
 
 const POLL_MS = 1_500;
+/** A failing poll waits up to 8x the interval before the next try. */
+const MAX_POLL_BACKOFF = 8;
 
 /** The id of the running run named by a 409 from a background start, if any. */
 function runningRunId(cause: unknown): string | null {
@@ -102,29 +104,44 @@ export function AssistantPanel({
     };
   }, [client, token, lead.id]);
 
-  // A background run (status 'running') is polled until it finishes; unmounting stops the polling.
+  // A background run (status 'running') is polled until it finishes. A failed poll (network blip,
+  // API restart) is retried with backoff; only a 401 or unmounting stops the polling.
   const runningId = run?.status === 'running' ? run.id : null;
+  const [pollFailures, setPollFailures] = useState(0);
   useEffect(() => {
     if (!runningId) return;
     let cancelled = false;
+    const delay = pollIntervalMs * Math.min(2 ** pollFailures, MAX_POLL_BACKOFF);
     const timer = setTimeout(() => {
       client
         .getRun(token, lead.id, runningId)
         .then((next) => {
-          if (!cancelled) setRun(next);
+          if (cancelled) return;
+          if (pollFailures > 0) {
+            setPollFailures(0);
+            setError(null);
+          }
+          setRun(next);
         })
         .catch((cause: unknown) => {
-          if (!cancelled) reportError(cause, 'Lost track of the running analysis.');
+          if (cancelled) return;
+          if (cause instanceof ApiError && cause.status === 401) {
+            reportError(cause, 'Lost track of the running analysis.');
+            return;
+          }
+          setError('Lost contact with the API while the analysis runs. Retrying…');
+          setPollFailures((n) => n + 1);
         });
-    }, pollIntervalMs);
+    }, delay);
     return () => {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [client, token, lead.id, runningId, run, pollIntervalMs]);
+  }, [client, token, lead.id, runningId, run, pollIntervalMs, pollFailures]);
 
   async function analyse() {
     userStarted.current = true;
+    setPollFailures(0);
     setStarting(true);
     setError(null);
     setNotice(null);

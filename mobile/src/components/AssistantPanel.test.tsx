@@ -320,4 +320,26 @@ describe('AssistantPanel', () => {
       jest.useRealTimers();
     }
   });
+
+  it('keeps polling after a failed poll and recovers when the run finishes', async () => {
+    jest.useFakeTimers();
+    try {
+      mocked.listAssistantRuns.mockResolvedValue([makeRun({ status: 'running', recommendations: [], proposedActions: [] })]);
+      mocked.getAssistantRun.mockRejectedValueOnce(new ApiError(502, 'Bad gateway')).mockResolvedValueOnce(makeRun());
+      await renderPanel();
+
+      expect(await screen.findByText('Analysing…')).toBeOnTheScreen();
+      await act(async () => {
+        await jest.advanceTimersByTimeAsync(2_000);
+      });
+      await act(async () => {
+        await jest.advanceTimersByTimeAsync(4_000);
+      });
+      expect(await screen.findByText('Two Marina 2-beds fit the budget.')).toBeOnTheScreen();
+      expect(mocked.getAssistantRun).toHaveBeenCalledTimes(2);
+      expect(screen.queryByText('Bad gateway')).toBeNull();
+    } finally {
+      jest.useRealTimers();
+    }
+  });
 });

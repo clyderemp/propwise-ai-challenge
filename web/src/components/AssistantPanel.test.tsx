@@ -409,6 +409,33 @@ describe('AssistantPanel', () => {
       expect(client.getRun).not.toHaveBeenCalled();
     });
 
+    it('keeps polling after a failed poll and recovers when the run finishes', async () => {
+      const getRun = vi
+        .fn<AssistantClient['getRun']>()
+        .mockRejectedValueOnce(new ApiError(502, 'Bad gateway'))
+        .mockResolvedValueOnce(completedRun());
+      const client = fakeClient({ startRun: vi.fn().mockResolvedValue(running()), getRun });
+      renderPolling(client);
+      await analyse();
+      expect(await screen.findByText(/two listings fit/, undefined, { timeout: 2000 })).toBeInTheDocument();
+      expect(getRun).toHaveBeenCalledTimes(2);
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Analyse latest message' })).toBeEnabled();
+    });
+
+    it('stops polling on 401', async () => {
+      const onUnauthorized = vi.fn();
+      const getRun = vi.fn<AssistantClient['getRun']>().mockRejectedValue(new ApiError(401, 'Unauthorized'));
+      const client = fakeClient({ startRun: vi.fn().mockResolvedValue(running()), getRun });
+      render(
+        <AssistantPanel lead={lead} token="tok" timeZone="Asia/Dubai" client={client} onApproved={vi.fn()} onUnauthorized={onUnauthorized} pollIntervalMs={5} />,
+      );
+      await analyse();
+      await waitFor(() => expect(onUnauthorized).toHaveBeenCalled());
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      expect(getRun).toHaveBeenCalledTimes(1);
+    });
+
     it('stops polling when the panel unmounts', async () => {
       const getRun = vi.fn().mockResolvedValue(running({ trace: [search] }));
       const client = fakeClient({ latestRun: vi.fn().mockResolvedValue(running()), getRun });
