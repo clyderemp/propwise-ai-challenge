@@ -1,16 +1,25 @@
-import { Redirect, Stack, useLocalSearchParams } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { AssistantPanel } from '../../components/AssistantPanel';
-import { MessageThread } from '../../components/MessageThread';
-import { StatusBadge } from '../../components/StatusBadge';
-import { TaskList } from '../../components/TaskList';
-import { api, ApiError, LeadDetail, Page, Task } from '../../lib/api';
-import { useSession } from '../../lib/session';
+import { Redirect, Stack, useLocalSearchParams } from "expo-router";
+import { useCallback, useEffect, useState } from "react";
+import {
+  ActivityIndicator,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
+import { AssistantPanel } from "../../components/AssistantPanel";
+import { MessageThread } from "../../components/MessageThread";
+import { StatusBadge } from "../../components/StatusBadge";
+import { TaskList } from "../../components/TaskList";
+import { api, ApiError, LeadDetail, Page, Task } from "../../lib/api";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { CONTENT_MAX_WIDTH, SCREEN_BACKGROUND } from "../../lib/layout";
+import { useSession } from "../../lib/session";
 
 export default function LeadScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { session, logout } = useSession();
+  const insets = useSafeAreaInsets();
   const [lead, setLead] = useState<LeadDetail | null>(null);
   const [tasks, setTasks] = useState<Page<Task>>({ items: [], total: 0 });
   const [error, setError] = useState<string | null>(null);
@@ -18,14 +27,17 @@ export default function LeadScreen() {
   const handleError = useCallback(
     (err: unknown) => {
       if (err instanceof ApiError && err.status === 401) return logout();
-      setError(err instanceof Error ? err.message : 'Something went wrong');
+      setError(err instanceof Error ? err.message : "Something went wrong");
     },
     [logout],
   );
 
   useEffect(() => {
     if (!session) return;
-    Promise.all([api.getLead(session.token, id), api.listTasks(session.token, id)])
+    Promise.all([
+      api.getLead(session.token, id),
+      api.listTasks(session.token, id),
+    ])
       .then(([leadResult, taskResult]) => {
         setLead(leadResult);
         setTasks(taskResult);
@@ -36,7 +48,9 @@ export default function LeadScreen() {
   async function toggleTask(task: Task) {
     if (!session) return;
     try {
-      await api.updateTask(session.token, task.id, { status: task.status === 'done' ? 'open' : 'done' });
+      await api.updateTask(session.token, task.id, {
+        status: task.status === "done" ? "open" : "done",
+      });
       setTasks(await api.listTasks(session.token, id));
     } catch (err) {
       handleError(err);
@@ -52,8 +66,16 @@ export default function LeadScreen() {
   const timeZone = session.agent.timezone;
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
-      <Stack.Screen options={{ title: lead?.name ?? 'Lead' }} />
+    <ScrollView
+      style={styles.screen}
+      contentContainerStyle={[
+        styles.content,
+        { paddingBottom: 32 + insets.bottom },
+      ]}
+      contentInsetAdjustmentBehavior="automatic"
+      keyboardShouldPersistTaps="handled"
+    >
+      <Stack.Screen options={{ title: lead?.name ?? "Lead" }} />
       {error && <Text style={styles.error}>{error}</Text>}
       {!lead && !error && <ActivityIndicator />}
       {lead && (
@@ -62,7 +84,11 @@ export default function LeadScreen() {
             <Text style={styles.name}>{lead.name}</Text>
             <StatusBadge status={lead.status} />
           </View>
-          <Text style={styles.meta}>{[lead.phone, lead.email, `via ${lead.source}`].filter(Boolean).join(' · ')}</Text>
+          <Text style={styles.meta}>
+            {[lead.phone, lead.email, `via ${lead.source}`]
+              .filter(Boolean)
+              .join(" · ")}
+          </Text>
           {lead.notes && <Text style={styles.meta}>{lead.notes}</Text>}
 
           <AssistantPanel
@@ -77,7 +103,12 @@ export default function LeadScreen() {
           <MessageThread messages={lead.messages} timeZone={timeZone} />
 
           <Text style={styles.section}>Tasks</Text>
-          <TaskList tasks={tasks.items} total={tasks.total} timeZone={timeZone} onToggle={toggleTask} />
+          <TaskList
+            tasks={tasks.items}
+            total={tasks.total}
+            timeZone={timeZone}
+            onToggle={toggleTask}
+          />
         </>
       )}
     </ScrollView>
@@ -85,11 +116,22 @@ export default function LeadScreen() {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#f6f7f9' },
-  content: { padding: 16, gap: 12, paddingBottom: 48 },
-  header: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
-  name: { fontSize: 20, fontWeight: '600', color: '#111827' },
-  meta: { color: '#4b5563' },
-  section: { marginTop: 12, fontSize: 16, fontWeight: '600', color: '#111827' },
-  error: { color: '#dc2626' },
+  screen: { flex: 1, backgroundColor: SCREEN_BACKGROUND },
+  content: {
+    padding: 16,
+    gap: 12,
+    width: "100%",
+    maxWidth: CONTENT_MAX_WIDTH,
+    alignSelf: "center",
+  },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    flexWrap: "wrap",
+  },
+  name: { flexShrink: 1, fontSize: 20, fontWeight: "600", color: "#111827" },
+  meta: { color: "#4b5563" },
+  section: { marginTop: 12, fontSize: 16, fontWeight: "600", color: "#111827" },
+  error: { color: "#dc2626" },
 });
