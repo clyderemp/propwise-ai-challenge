@@ -80,6 +80,28 @@ export interface AssistantRequirements {
   propertyType: Property['type'] | null;
   intent: 'buy' | 'rent' | 'unknown';
   preferences: string[];
+  /** Extra API fields. bedrooms is null when the lead gave a range ("studio or 1-bed"). */
+  bedroomsRange?: { min: number | null; max: number | null };
+  /** True for "around 2M": budgetAed.max is the stated figure, not a hard ceiling. */
+  budgetIsApproximate?: boolean;
+  prioritiseYield?: boolean;
+  /** The lead's purchase or move timeline, resolved by the API; null or absent when none. */
+  timeline?: AssistantTimeline | null;
+}
+
+export interface AssistantTimeline {
+  kind: 'asap' | 'this_week' | 'next_week' | 'this_month' | 'next_month' | 'within_days' | 'by_date' | 'no_rush';
+  quote: string | null;
+  /** Local dates (YYYY-MM-DD) in the agent's zone. */
+  windowStart: string | null;
+  windowEnd: string | null;
+  /** E.g. "16-22 Nov 2026". */
+  window: string | null;
+  /** E.g. "this week (16-22 Nov 2026)". */
+  label: string;
+  urgent: boolean;
+  /** The window had ended when the message was analysed. */
+  stale: boolean;
 }
 
 export interface ProposedAction {

@@ -5,6 +5,7 @@ import {
   ApiError,
   AssistantRequirements,
   AssistantRun,
+  AssistantTimeline,
   LeadDetail,
   ListingFlag,
   ProposedAction,
@@ -45,16 +46,31 @@ function capitalise(text: string): string {
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
-function bedroomsLabel(bedrooms: number | null): string {
-  if (bedrooms === null) return 'Any';
-  return bedrooms === 0 ? 'Studio' : `${bedrooms} bed`;
+function bedroomsLabel(r: AssistantRequirements): string {
+  const one = (n: number) => (n === 0 ? 'Studio' : `${n} bed`);
+  if (r.bedrooms !== null) return one(r.bedrooms);
+  const range = r.bedroomsRange;
+  if (range?.min != null && range.max != null) {
+    if (range.min === range.max) return one(range.min);
+    return range.min === 0 ? `Studio or ${range.max} bed` : `${range.min}–${range.max} bed`;
+  }
+  if (range?.min != null) return `${one(range.min)} or more`;
+  if (range?.max != null) return `Up to ${one(range.max)}`;
+  return 'Any';
 }
 
-function budgetLabel({ min, max }: AssistantRequirements['budgetAed']): string {
+function budgetLabel(r: AssistantRequirements): string {
+  const { min, max } = r.budgetAed;
   if (min !== null && max !== null) return `${formatAed(min)} – ${formatAed(max)}`;
-  if (max !== null) return `Up to ${formatAed(max)}`;
+  if (max !== null) return `${r.budgetIsApproximate ? 'Around' : 'Up to'} ${formatAed(max)}`;
   if (min !== null) return `From ${formatAed(min)}`;
   return 'No budget given';
+}
+
+/** "Ready to buy this week (16-22 Nov 2026) · urgent", plus "window already passed" when stale. */
+function timelineLabel(t: AssistantTimeline): string {
+  const phrase = t.quote ? `${t.quote}${t.window ? ` (${t.window})` : ''}` : capitalise(t.label);
+  return [phrase, t.urgent ? 'urgent' : null, t.stale ? 'window already passed' : null].filter(Boolean).join(' · ');
 }
 
 function errorMessage(err: unknown): string {
@@ -244,11 +260,12 @@ function CompletedRun({ run, timeZone, decidingId, onDecide }: CompletedRunProps
   const { requirements } = run;
   const facts: Array<[string, string]> = [
     ['Area', requirements.locations.join(', ') || 'Any area'],
-    ['Bedrooms', bedroomsLabel(requirements.bedrooms)],
-    ['Budget', budgetLabel(requirements.budgetAed)],
+    ['Bedrooms', bedroomsLabel(requirements)],
+    ['Budget', budgetLabel(requirements)],
     ['Type', requirements.propertyType ? capitalise(requirements.propertyType) : 'Any type'],
     ['Intent', INTENT_LABELS[requirements.intent]],
     ['Preferences', requirements.preferences.join(', ') || 'None'],
+    ...(requirements.timeline ? [['Timeline', timelineLabel(requirements.timeline)] as [string, string]] : []),
   ];
 
   return (

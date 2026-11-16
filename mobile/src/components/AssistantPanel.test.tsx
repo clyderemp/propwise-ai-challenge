@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
-import { api, ApiError, AssistantRun, LeadDetail, ProposedAction, Task } from '../lib/api';
+import { api, ApiError, AssistantRequirements, AssistantRun, AssistantTimeline, LeadDetail, ProposedAction, Task } from '../lib/api';
 import { AssistantPanel } from './AssistantPanel';
 
 jest.mock('../lib/api', () => {
@@ -163,6 +163,63 @@ describe('AssistantPanel', () => {
     expect(screen.getByText('Due 16 Oct, 10:00')).toBeOnTheScreen();
     expect(screen.getByText('Waiting for approval')).toBeOnTheScreen();
     expect(screen.getByRole('button', { name: 'Analyze again' })).toBeEnabled();
+  });
+
+  describe('requirements read like the web panel', () => {
+    const withRequirements = (over: Partial<AssistantRequirements>) => makeRun({ requirements: { ...makeRun().requirements, ...over } });
+
+    it.each<[string, Partial<AssistantRequirements>, string]>([
+      ['an approximate budget is "Around"', { budgetIsApproximate: true }, 'Around AED 2,000,000'],
+      ['an explicit maximum is "Up to"', { budgetIsApproximate: false }, 'Up to AED 2,000,000'],
+      ['a minimum and a maximum are a range', { budgetAed: { min: 1_000_000, max: 2_000_000 } }, 'AED 1,000,000 – AED 2,000,000'],
+      ['bedroomsRange 0-1 is "Studio or 1 bed"', { bedrooms: null, bedroomsRange: { min: 0, max: 1 } }, 'Studio or 1 bed'],
+      ['bedroomsRange 2-3 is "2–3 bed"', { bedrooms: null, bedroomsRange: { min: 2, max: 3 } }, '2–3 bed'],
+      ['0 bedrooms is "Studio"', { bedrooms: 0, bedroomsRange: { min: 0, max: 0 } }, 'Studio'],
+    ])('%s', async (_name, over, text) => {
+      mocked.listAssistantRuns.mockResolvedValue([withRequirements(over)]);
+      await renderPanel();
+      expect(await screen.findByText(text)).toBeOnTheScreen();
+    });
+  });
+
+  describe('the lead timeline', () => {
+    const thisWeek: AssistantTimeline = {
+      kind: 'this_week',
+      quote: 'Ready to buy this week',
+      windowStart: '2026-11-16',
+      windowEnd: '2026-11-22',
+      window: '16-22 Nov 2026',
+      label: 'this week (16-22 Nov 2026)',
+      urgent: true,
+      stale: false,
+    };
+    const withTimeline = (timeline: AssistantTimeline | null) => makeRun({ requirements: { ...makeRun().requirements, timeline } });
+
+    it('shows the timeline with its window and urgency', async () => {
+      mocked.listAssistantRuns.mockResolvedValue([withTimeline(thisWeek)]);
+      await renderPanel();
+      expect(await screen.findByText('Timeline')).toBeOnTheScreen();
+      expect(screen.getByText('Ready to buy this week (16-22 Nov 2026) · urgent')).toBeOnTheScreen();
+    });
+
+    it('says when the window already passed', async () => {
+      mocked.listAssistantRuns.mockResolvedValue([withTimeline({ ...thisWeek, stale: true })]);
+      await renderPanel();
+      expect(await screen.findByText('Ready to buy this week (16-22 Nov 2026) · urgent · window already passed')).toBeOnTheScreen();
+    });
+
+    it('uses the label when there is no quote', async () => {
+      mocked.listAssistantRuns.mockResolvedValue([withTimeline({ ...thisWeek, kind: 'no_rush', quote: null, windowStart: null, windowEnd: null, window: null, label: 'no rush', urgent: false })]);
+      await renderPanel();
+      expect(await screen.findByText('No rush')).toBeOnTheScreen();
+    });
+
+    it('shows no timeline row when the lead gave none', async () => {
+      mocked.listAssistantRuns.mockResolvedValue([withTimeline(null)]);
+      await renderPanel();
+      expect(await screen.findByText('Two Marina 2-beds fit the budget.')).toBeOnTheScreen();
+      expect(screen.queryByText('Timeline')).toBeNull();
+    });
   });
 
   it("shows the due time in the agent's timezone, not the phone's", async () => {
