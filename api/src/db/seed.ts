@@ -5,6 +5,7 @@ import { hashPassword } from '../auth/password';
 import {
   Agency,
   Agent,
+  AssistantRun,
   Lead,
   LeadSource,
   LeadStatus,
@@ -14,6 +15,7 @@ import {
   Property,
   PropertyStatus,
   PropertyType,
+  ProposedAction,
   Task,
   TaskStatus,
 } from '../entities';
@@ -86,6 +88,9 @@ export async function seed(em: EntityManager, now: Date = new Date()): Promise<v
   const ago = (ms: number) => new Date(now.getTime() - ms);
 
   await em.transactional(async (tx) => {
+    // Assistant rows reference tasks, messages and leads, so they go first.
+    await tx.nativeDelete(ProposedAction, {});
+    await tx.nativeDelete(AssistantRun, {});
     await tx.nativeDelete(Task, {});
     await tx.nativeDelete(Message, {});
     await tx.nativeDelete(Lead, {});

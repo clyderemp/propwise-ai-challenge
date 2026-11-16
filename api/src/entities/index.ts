@@ -4,3 +4,5 @@ export * from './lead.entity';
 export * from './message.entity';
 export * from './property.entity';
 export * from './task.entity';
+export * from './assistant-run.entity';
+export * from './proposed-action.entity';
