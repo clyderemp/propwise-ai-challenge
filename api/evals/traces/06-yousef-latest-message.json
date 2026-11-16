@@ -63,9 +63,9 @@
     {
       "label": "Yousef",
       "status": 201,
-      "latencyMs": 9670,
+      "latencyMs": 11323,
       "run": {
-        "id": "62257a5b-5e56-49be-8194-fc93047067a0",
+        "id": "4d63a3f2-f5fa-499f-b99f-10f5b88b44ae",
         "leadId": "651d2943-9f72-5cec-979f-58bf69380af8",
         "messageId": "66ecee80-b236-5bcc-8536-e00e18aaaca6",
         "status": "completed",
@@ -88,12 +88,13 @@
             "max": 3
           },
           "budgetIsApproximate": false,
-          "prioritiseYield": false
+          "prioritiseYield": true,
+          "timeline": null
         },
         "recommendations": [
           {
             "propertyId": "44bc22be-e2ec-590c-b32a-16b1894881f5",
-            "reason": "MBR-1011 is a 3BR apartment in Marina Gate 1, Dubai Marina, asking AED 3,600,000. It is available, with an estimated annual rent of AED 220,000, a 6.11% gross yield.",
+            "reason": "MBR-1011 is a 3-bedroom, 1,900 sqft apartment in Marina Gate 1, Dubai Marina. It is available at AED 3,600,000, with an estimated annual rent of AED 220,000, which gives a gross yield of 6.11%.",
             "property": {
               "reference": "MBR-1011",
               "title": "3BR family apartment in Marina Gate 1",
@@ -110,15 +111,15 @@
             }
           }
         ],
-        "summary": "Yousef wants to buy a 3-bedroom apartment in Dubai Marina for up to AED 4,000,000, with good rental yield as a preference. One available listing fits: MBR-1011 at AED 3.6M with a 6.11% gross yield. It has no data flags. No open follow-up tasks exist for this lead.",
+        "summary": "Yousef Darwish wants to buy a 3-bedroom apartment in Dubai Marina for up to AED 4,000,000, and good rental yield matters most. Only one available listing fits: MBR-1011 in Marina Gate 1, at AED 3,600,000 with a 6.11% gross yield. It has no data-quality flags. With only one match, it may be worth asking Yousef if he'd look at other areas or property types.",
         "proposedActions": [
           {
-            "id": "5e73b0c6-86c0-4b11-9588-cf50556f4dea",
+            "id": "485abc39-fe12-48f8-b1c9-6d165fd6ce5a",
             "type": "create_follow_up_task",
             "status": "pending_approval",
             "task": {
-              "title": "Call Yousef about Dubai Marina 3BR options",
-              "notes": "Present MBR-1011 (Marina Gate 1, 3BR, AED 3,600,000, 6.11% gross yield, available). Only one match in the budget, so ask whether he is flexible on budget or nearby areas, and offer a viewing.",
+              "title": "Call Yousef Darwish about Dubai Marina 3BR option",
+              "notes": "Present MBR-1011 (Marina Gate 1, 3BR, 1,900 sqft, AED 3,600,000, estimated rent AED 220,000 a year, 6.11% gross yield, available). Check whether it is vacant or tenanted and offer a viewing. Ask if he'd consider other areas, since this is the only matching listing in Dubai Marina.",
               "dueAt": "2026-11-17T10:00:00+04:00"
             },
             "needsClarification": null,
@@ -133,7 +134,7 @@
               "total": 0,
               "items": []
             },
-            "durationMs": 20
+            "durationMs": 18
           },
           {
             "tool": "search_listings",
@@ -168,11 +169,11 @@
                 }
               ]
             },
-            "durationMs": 35
+            "durationMs": 24
           }
         ],
-        "createdAt": "2026-11-16T11:52:37.167Z",
-        "model": "claude-sonnet-5-5",
+        "createdAt": "2026-11-16T13:02:15.636Z",
+        "model": "claude-opus-5-5",
         "diagnostics": {
           "droppedRecommendations": [],
           "budgetBand": {
@@ -182,9 +183,29 @@
           },
           "searchSkipped": false,
           "usage": {
-            "inputTokens": 10285,
-            "outputTokens": 836,
-            "totalTokens": 11121
+            "inputTokens": 11617,
+            "outputTokens": 989,
+            "totalTokens": 12606,
+            "cacheReadTokens": 10340,
+            "cacheWriteTokens": 836,
+            "cacheHitRatio": 0.8900748902470518,
+            "estimatedCostUsd": 0.027792,
+            "estimatedCostWithoutCacheUsd": 0.066248
+          },
+          "failureKind": null,
+          "timings": {
+            "startedAt": "2026-11-16T13:02:15.639Z",
+            "finishedAt": "2026-11-16T13:02:26.921Z",
+            "latencyMs": 11282,
+            "phaseAMs": 2883,
+            "phaseBMs": 8398
+          },
+          "selfVerification": {
+            "checkedRecommendations": 1,
+            "issuesFound": [],
+            "revised": false,
+            "rounds": 0,
+            "fallbackReasons": []
           }
         },
         "dataWarnings": []

@@ -27,11 +27,11 @@
     {
       "label": "Timezone edge",
       "status": 201,
-      "latencyMs": 6184,
+      "latencyMs": 8273,
       "run": {
-        "id": "2fc1db03-251a-446e-b6a1-8d666c33a7ef",
-        "leadId": "e174d483-ac41-43c4-89b1-2c5c651a7a39",
-        "messageId": "bbfe1efb-bc5a-41a4-a5af-72a443ad657f",
+        "id": "5fff9b5a-1904-4806-afed-efb269ca70e3",
+        "leadId": "675a11fe-5573-4ad1-a0ff-8f9f09a76844",
+        "messageId": "792645e3-b3a3-4519-97dc-5bad680dc92d",
         "status": "completed",
         "requirements": {
           "locations": [],
@@ -48,18 +48,19 @@
             "max": null
           },
           "budgetIsApproximate": false,
-          "prioritiseYield": false
+          "prioritiseYield": false,
+          "timeline": null
         },
         "recommendations": [],
-        "summary": "The lead gave no property criteria. There is no area, property type, bedroom count, budget or listing code, and the intent is unknown. I ran no listing search and recommend nothing. The lead has no open follow-up tasks. The next step is to contact the lead and ask what they are looking for.",
+        "summary": "The lead gave no property criteria: no area, property type, bedrooms, budget, or whether they want to buy or rent. That means there is nothing to search on, so I haven't recommended any listings. The lead has no open follow-up tasks. The next step is to contact them and find out what they need.",
         "proposedActions": [
           {
-            "id": "d7c56741-78f5-4d2a-a42b-e52872a25d46",
+            "id": "61fb8300-bc22-4826-bba3-5a06d09908dc",
             "type": "create_follow_up_task",
             "status": "pending_approval",
             "task": {
-              "title": "Contact lead to clarify property requirements",
-              "notes": "The message gave no criteria. Ask whether they want to buy or rent, which areas they prefer, the property type, bedrooms, budget, and whether rental yield matters. Then shortlist matching listings.",
+              "title": "Contact lead to find out what property they need",
+              "notes": "The lead's message had no property criteria. Ask whether they want to buy or rent, and which areas, property type, number of bedrooms and budget in AED they have in mind. Also ask whether rental yield matters to them. The message was sent late in the evening on 16 Oct 2026 (21:30 UTC), so plan to reach out during reasonable local hours.",
               "dueAt": "2026-10-18T10:00:00+04:00"
             },
             "needsClarification": null,
@@ -74,20 +75,34 @@
               "total": 0,
               "items": []
             },
-            "durationMs": 12
+            "durationMs": 10
           }
         ],
-        "createdAt": "2026-11-16T11:52:49.775Z",
-        "model": "claude-sonnet-5-5",
+        "createdAt": "2026-11-16T13:02:29.328Z",
+        "model": "claude-opus-5-5",
         "diagnostics": {
           "droppedRecommendations": [],
           "budgetBand": null,
           "searchSkipped": true,
           "usage": {
-            "inputTokens": 7700,
-            "outputTokens": 432,
-            "totalTokens": 8132
-          }
+            "inputTokens": 9053,
+            "outputTokens": 546,
+            "totalTokens": 9599,
+            "cacheReadTokens": 8727,
+            "cacheWriteTokens": 73,
+            "cacheHitRatio": 0.9639898376228875,
+            "estimatedCostUsd": 0.0140424,
+            "estimatedCostWithoutCacheUsd": 0.047132
+          },
+          "failureKind": null,
+          "timings": {
+            "startedAt": "2026-11-16T13:02:29.333Z",
+            "finishedAt": "2026-11-16T13:02:37.554Z",
+            "latencyMs": 8221,
+            "phaseAMs": 3278,
+            "phaseBMs": 4943
+          },
+          "selfVerification": null
         },
         "dataWarnings": []
       }

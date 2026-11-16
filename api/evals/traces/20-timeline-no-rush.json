@@ -1,0 +1,204 @@
+{
+  "case": "20-timeline-no-rush",
+  "title": "\"No rush, maybe next year\": no urgent follow-up",
+  "covers": "4 (timeline)",
+  "verdict": "PASS",
+  "assertions": [
+    {
+      "name": "No rush: HTTP 201 and status completed",
+      "pass": true,
+      "gating": true,
+      "detail": "HTTP 201, status completed"
+    },
+    {
+      "name": "requirements.timeline is not urgent (no_rush, or none)",
+      "pass": true,
+      "gating": true,
+      "detail": "{\"kind\":\"no_rush\",\"quote\":\"No rush, maybe next year.\",\"windowStart\":null,\"windowEnd\":null,\"window\":null,\"label\":\"no rush\",\"urgent\":false,\"stale\":false}"
+    },
+    {
+      "name": "no dated follow-up is proposed",
+      "pass": true,
+      "gating": true,
+      "detail": "[null]"
+    },
+    {
+      "name": "requirements.timeline is no_rush",
+      "pass": true,
+      "gating": false,
+      "detail": "{\"kind\":\"no_rush\",\"quote\":\"No rush, maybe next year.\",\"windowStart\":null,\"windowEnd\":null,\"window\":null,\"label\":\"no rush\",\"urgent\":false,\"stale\":false}"
+    }
+  ],
+  "runs": [
+    {
+      "label": "No rush",
+      "status": 201,
+      "latencyMs": 11800,
+      "run": {
+        "id": "ee43e706-4a35-4327-9dfa-59b7c08a8b50",
+        "leadId": "dbb78858-edde-4cfa-b9af-f555c4e80bf7",
+        "messageId": "4e2242a4-a411-4a94-a026-8885b75dcfc2",
+        "status": "completed",
+        "requirements": {
+          "locations": [
+            "Arabian Ranches"
+          ],
+          "bedrooms": 4,
+          "budgetAed": {
+            "min": null,
+            "max": 7000000
+          },
+          "propertyType": "villa",
+          "intent": "buy",
+          "preferences": [],
+          "bedroomsRange": {
+            "min": 4,
+            "max": 4
+          },
+          "budgetIsApproximate": false,
+          "prioritiseYield": false,
+          "timeline": {
+            "kind": "no_rush",
+            "quote": "No rush, maybe next year.",
+            "windowStart": null,
+            "windowEnd": null,
+            "window": null,
+            "label": "no rush",
+            "urgent": false,
+            "stale": false
+          }
+        },
+        "recommendations": [
+          {
+            "propertyId": "9bb91316-5cfb-5d19-8881-01dd2d5e061c",
+            "reason": "MBR-1019 is an available 4-bedroom villa in Saheel, Arabian Ranches (3,800 sqft). It's priced at AED 6,200,000, with estimated rent of AED 280,000 a year, a 4.52% gross yield.",
+            "property": {
+              "reference": "MBR-1019",
+              "title": "Family villa with private garden, Arabian Ranches",
+              "area": "Arabian Ranches",
+              "building": "Saheel",
+              "type": "villa",
+              "bedrooms": 4,
+              "sizeSqft": 3800,
+              "priceAed": 6200000,
+              "annualRentAed": 280000,
+              "grossYieldPct": 4.52,
+              "status": "available",
+              "flags": [
+                "instruction_like_text"
+              ]
+            }
+          }
+        ],
+        "summary": "The lead wants to buy a 4-bedroom villa in Arabian Ranches for up to AED 7,000,000. One available listing fits: MBR-1019 in Saheel at AED 6,200,000, with a 4.52% gross yield. The listing has an instruction_like_text flag, meaning its description contains text that reads like instructions. I ignored that text, but it's worth checking the description before you share the listing. The lead has no open follow-up tasks.",
+        "proposedActions": [
+          {
+            "id": "4dfb743f-5c80-4a40-b61b-e67508d97588",
+            "type": "create_follow_up_task",
+            "status": "pending_approval",
+            "task": {
+              "title": "Call lead about Arabian Ranches 4BR villa MBR-1019",
+              "notes": "Present MBR-1019 (Saheel, Arabian Ranches, 4BR villa, 3,800 sqft, AED 6,200,000, 4.52% gross yield, available). Confirm interest and offer a viewing. Ask whether the lead would also consider other areas, since this is the only match. Check the listing description first because it is flagged instruction_like_text.",
+              "dueAt": null
+            },
+            "needsClarification": "The lead did not say when to follow up.",
+            "taskId": null
+          }
+        ],
+        "trace": [
+          {
+            "tool": "get_lead_tasks",
+            "input": {},
+            "output": {
+              "total": 0,
+              "items": []
+            },
+            "durationMs": 26
+          },
+          {
+            "tool": "search_listings",
+            "input": {
+              "area": "Arabian Ranches",
+              "propertyType": "villa",
+              "minBedrooms": 4,
+              "maxBedrooms": 4,
+              "minPriceAed": null,
+              "maxPriceAed": 7000000,
+              "status": "available",
+              "reference": null
+            },
+            "output": {
+              "total": 1,
+              "truncated": false,
+              "items": [
+                {
+                  "id": "9bb91316-5cfb-5d19-8881-01dd2d5e061c",
+                  "reference": "MBR-1019",
+                  "title": "Family villa with private garden, Arabian Ranches",
+                  "area": "Arabian Ranches",
+                  "building": "Saheel",
+                  "type": "villa",
+                  "bedrooms": 4,
+                  "sizeSqft": 3800,
+                  "priceAed": 6200000,
+                  "annualRentAed": 280000,
+                  "grossYieldPct": 4.52,
+                  "status": "available",
+                  "flags": [
+                    "instruction_like_text"
+                  ]
+                }
+              ]
+            },
+            "durationMs": 32
+          }
+        ],
+        "createdAt": "2026-11-16T13:03:19.454Z",
+        "model": "claude-opus-5-5",
+        "diagnostics": {
+          "droppedRecommendations": [],
+          "budgetBand": {
+            "floorAed": null,
+            "ceilingAed": 7000000,
+            "approximate": false
+          },
+          "searchSkipped": false,
+          "usage": {
+            "inputTokens": 11453,
+            "outputTokens": 1008,
+            "totalTokens": 12461,
+            "cacheReadTokens": 11169,
+            "cacheWriteTokens": 0,
+            "cacheHitRatio": 0.9752030035798481,
+            "estimatedCostUsd": 0.0235298,
+            "estimatedCostWithoutCacheUsd": 0.065972
+          },
+          "failureKind": null,
+          "timings": {
+            "startedAt": "2026-11-16T13:03:19.457Z",
+            "finishedAt": "2026-11-16T13:03:31.220Z",
+            "latencyMs": 11763,
+            "phaseAMs": 2432,
+            "phaseBMs": 9331
+          },
+          "selfVerification": {
+            "checkedRecommendations": 1,
+            "issuesFound": [],
+            "revised": false,
+            "rounds": 0,
+            "fallbackReasons": []
+          }
+        },
+        "dataWarnings": [
+          {
+            "propertyId": "9bb91316-5cfb-5d19-8881-01dd2d5e061c",
+            "reference": "MBR-1019",
+            "flags": [
+              "instruction_like_text"
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

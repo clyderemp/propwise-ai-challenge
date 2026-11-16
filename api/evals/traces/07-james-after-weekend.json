@@ -32,13 +32,13 @@
       "name": "James: recommendations within {MBR-1009}",
       "pass": true,
       "gating": true,
-      "detail": "got [MBR-1009]"
+      "detail": "got []"
     },
     {
       "name": "recommends MBR-1009, or recommends nothing and the summary explains it (names MBR-1009 / Marina Gate 2)",
       "pass": true,
       "gating": true,
-      "detail": "[MBR-1009] summary: James wants to buy a 1-bedroom in Jumeirah Lake Towers or Dubai Marina for up to AED 1.5M. One listing fits: MBR-1009 in Dubai Marina. There are no available 1-bedroom listings in Jumeirah Lake Towers within budget. The listing has no data flags. The only existing task, sending the Marina Gate 2 floor plan, is already done, so a new follow-up is needed."
+      "detail": "[] summary: James wants to buy a 1-bedroom apartment in Jumeirah Lake Towers or Dubai Marina for up to AED 1,500,000, and it must be larger than the Marina Gate 2 unit. Nothing fits. Jumeirah Lake Towers has no available 1-bedroom apartments in budget. The only Dubai Marina match is the Marina Gate 2 unit itself (MBR-1009: 850 sqft, AED 1,450,000, 7.24% gross yield, available). It isn't larger than itself, so I haven't recommended it. The next step is to ask James whether he'd raise his budget, look at other areas, or consider a different unit type to get more space."
     },
     {
       "name": "locations within {Dubai Marina, Jumeirah Lake Towers} and not empty",
@@ -51,21 +51,15 @@
       "pass": true,
       "gating": true,
       "detail": "1"
-    },
-    {
-      "name": "James: MBR-1009 reason quotes only the computed gross yield",
-      "pass": true,
-      "gating": false,
-      "detail": "computed 7.24%, quoted [7.24]"
     }
   ],
   "runs": [
     {
       "label": "James",
       "status": 201,
-      "latencyMs": 9542,
+      "latencyMs": 13644,
       "run": {
-        "id": "89c04fce-b0f0-43d4-985a-c766bfc721b6",
+        "id": "bcddaff8-5f7b-4142-9dce-9c91bc1cab69",
         "leadId": "ac364939-7391-5caa-90c7-6aefc6ee7908",
         "messageId": "87cb28d2-3a64-58b2-96f5-d6358c5bf5db",
         "status": "completed",
@@ -79,45 +73,29 @@
             "min": null,
             "max": 1500000
           },
-          "propertyType": null,
+          "propertyType": "apartment",
           "intent": "buy",
-          "preferences": [],
+          "preferences": [
+            "larger than Marina Gate 2 unit"
+          ],
           "bedroomsRange": {
             "min": 1,
             "max": 1
           },
           "budgetIsApproximate": false,
-          "prioritiseYield": false
+          "prioritiseYield": false,
+          "timeline": null
         },
-        "recommendations": [
-          {
-            "propertyId": "515c90a2-ce40-5d85-bd03-51c05ca25f21",
-            "reason": "1BR apartment in Marina Gate 2, Dubai Marina at AED 1,450,000, gross yield 7.24%.",
-            "property": {
-              "reference": "MBR-1009",
-              "title": "1BR in Marina Gate 2",
-              "area": "Dubai Marina",
-              "building": "Marina Gate 2",
-              "type": "apartment",
-              "bedrooms": 1,
-              "sizeSqft": 850,
-              "priceAed": 1450000,
-              "annualRentAed": 105000,
-              "grossYieldPct": 7.24,
-              "status": "available",
-              "flags": []
-            }
-          }
-        ],
-        "summary": "James wants to buy a 1-bedroom in Jumeirah Lake Towers or Dubai Marina for up to AED 1.5M. One listing fits: MBR-1009 in Dubai Marina. There are no available 1-bedroom listings in Jumeirah Lake Towers within budget. The listing has no data flags. The only existing task, sending the Marina Gate 2 floor plan, is already done, so a new follow-up is needed.",
+        "recommendations": [],
+        "summary": "James wants to buy a 1-bedroom apartment in Jumeirah Lake Towers or Dubai Marina for up to AED 1,500,000, and it must be larger than the Marina Gate 2 unit. Nothing fits. Jumeirah Lake Towers has no available 1-bedroom apartments in budget. The only Dubai Marina match is the Marina Gate 2 unit itself (MBR-1009: 850 sqft, AED 1,450,000, 7.24% gross yield, available). It isn't larger than itself, so I haven't recommended it. The next step is to ask James whether he'd raise his budget, look at other areas, or consider a different unit type to get more space.",
         "proposedActions": [
           {
-            "id": "41a8df43-0dad-45ba-849b-114e03421401",
+            "id": "a45cd425-8fca-4a25-a658-e1e8c21112a1",
             "type": "create_follow_up_task",
             "status": "pending_approval",
             "task": {
-              "title": "Call James about Marina Gate 2 1BR (MBR-1009)",
-              "notes": "Present MBR-1009 (Marina Gate 2, AED 1,450,000, 7.24% gross yield) and offer a viewing. Tell him nothing is currently available in Jumeirah Lake Towers within budget. Ask whether he would stretch the budget or consider other areas.",
+              "title": "Call James about larger 1BR options in JLT and Dubai Marina",
+              "notes": "Tell James we have no available 1-bedroom apartments larger than Marina Gate 2 (MBR-1009, 850 sqft, AED 1,450,000) in Jumeirah Lake Towers or Dubai Marina for up to AED 1,500,000. Ask whether he'd raise his budget, consider nearby areas, or look at a different unit type, and confirm the minimum size he wants in sqft. His earlier task, 'Send James the Marina Gate 2 floor plan', is already done.",
               "dueAt": "2026-11-16T10:00:00+04:00"
             },
             "needsClarification": null,
@@ -129,7 +107,7 @@
             "tool": "search_listings",
             "input": {
               "area": "Jumeirah Lake Towers",
-              "propertyType": null,
+              "propertyType": "apartment",
               "minBedrooms": 1,
               "maxBedrooms": 1,
               "minPriceAed": null,
@@ -142,7 +120,7 @@
               "truncated": false,
               "items": []
             },
-            "durationMs": 25
+            "durationMs": 23
           },
           {
             "tool": "get_lead_tasks",
@@ -153,17 +131,17 @@
                 {
                   "title": "Send James the Marina Gate 2 floor plan",
                   "status": "done",
-                  "dueAt": "2026-11-14T13:12:12.355Z"
+                  "dueAt": "2026-11-14T14:21:49.143Z"
                 }
               ]
             },
-            "durationMs": 27
+            "durationMs": 22
           },
           {
             "tool": "search_listings",
             "input": {
               "area": "Dubai Marina",
-              "propertyType": null,
+              "propertyType": "apartment",
               "minBedrooms": 1,
               "maxBedrooms": 1,
               "minPriceAed": null,
@@ -192,11 +170,11 @@
                 }
               ]
             },
-            "durationMs": 32
+            "durationMs": 25
           }
         ],
-        "createdAt": "2026-11-16T11:52:42.964Z",
-        "model": "claude-sonnet-5-5",
+        "createdAt": "2026-11-16T13:02:22.723Z",
+        "model": "claude-opus-5-5",
         "diagnostics": {
           "droppedRecommendations": [],
           "budgetBand": {
@@ -206,9 +184,29 @@
           },
           "searchSkipped": false,
           "usage": {
-            "inputTokens": 10545,
-            "outputTokens": 1142,
-            "totalTokens": 11687
+            "inputTokens": 11924,
+            "outputTokens": 1349,
+            "totalTokens": 13273,
+            "cacheReadTokens": 10360,
+            "cacheWriteTokens": 1182,
+            "cacheHitRatio": 0.8688359610868835,
+            "estimatedCostUsd": 0.03649,
+            "estimatedCostWithoutCacheUsd": 0.074676
+          },
+          "failureKind": null,
+          "timings": {
+            "startedAt": "2026-11-16T13:02:22.726Z",
+            "finishedAt": "2026-11-16T13:02:36.317Z",
+            "latencyMs": 13591,
+            "phaseAMs": 2913,
+            "phaseBMs": 10678
+          },
+          "selfVerification": {
+            "checkedRecommendations": 0,
+            "issuesFound": [],
+            "revised": false,
+            "rounds": 0,
+            "fallbackReasons": []
           }
         },
         "dataWarnings": []

@@ -1,7 +1,7 @@
 {
   "case": "04-lina-nothing-fits",
-  "title": "Nothing fits (Lina: 5BR villa in the Marina under 900k)",
-  "covers": "3",
+  "title": "Nothing fits, ready to buy this week (Lina: 5BR villa in the Marina under 900k)",
+  "covers": "3, 4",
   "verdict": "PASS",
   "assertions": [
     {
@@ -39,15 +39,45 @@
       "pass": true,
       "gating": true,
       "detail": "[\"search_listings\",\"get_lead_tasks\"]"
+    },
+    {
+      "name": "Lina: requirements.timeline is this_week and urgent",
+      "pass": true,
+      "gating": true,
+      "detail": "{\"kind\":\"this_week\",\"quote\":\"Ready to buy this week\",\"windowStart\":\"2026-11-16\",\"windowEnd\":\"2026-11-22\",\"window\":\"16-22 Nov 2026\",\"label\":\"this week (16-22 Nov 2026)\",\"urgent\":true,\"stale\":false}"
+    },
+    {
+      "name": "Lina: exactly one proposed action, pending approval",
+      "pass": true,
+      "gating": true,
+      "detail": "got [\"pending_approval\"]"
+    },
+    {
+      "name": "Lina: dueAt is the next working day after the message: 2026-11-17T10:00:00+04:00",
+      "pass": true,
+      "gating": true,
+      "detail": "\"2026-11-17T10:00:00+04:00\""
+    },
+    {
+      "name": "Lina: needsClarification is null",
+      "pass": true,
+      "gating": true,
+      "detail": "null"
+    },
+    {
+      "name": "Lina: the task notes give the timeline",
+      "pass": true,
+      "gating": true,
+      "detail": "\"We have no available 5-bedroom villas in Dubai Marina at or under AED 900,000. Ask whether she'd consider other areas, a smaller unit, an apartment or townhouse, or a higher budget, then run a new search.\\n\\nTimeline: this week (16-22 Nov 2026), \\\"Ready to buy this week\\\". Urgent, so follow up on the next working day after the message.\""
     }
   ],
   "runs": [
     {
       "label": "Lina",
       "status": 201,
-      "latencyMs": 9148,
+      "latencyMs": 9931,
       "run": {
-        "id": "798acb8f-f576-4be0-b829-7f0925eb9294",
+        "id": "5f48fab7-962e-43fa-b083-6f7eb0cf21e2",
         "leadId": "0bab04e6-d42d-521e-aa18-d256456a6b69",
         "messageId": "6fd52efc-4a8a-5dc8-b6d5-fa1f85a045db",
         "status": "completed",
@@ -68,21 +98,31 @@
             "max": 5
           },
           "budgetIsApproximate": false,
-          "prioritiseYield": false
+          "prioritiseYield": false,
+          "timeline": {
+            "kind": "this_week",
+            "quote": "Ready to buy this week",
+            "windowStart": "2026-11-16",
+            "windowEnd": "2026-11-22",
+            "window": "16-22 Nov 2026",
+            "label": "this week (16-22 Nov 2026)",
+            "urgent": true,
+            "stale": false
+          }
         },
         "recommendations": [],
-        "summary": "Lina Haddad wants to buy a 5-bedroom villa in Dubai Marina for up to AED 900,000. The search found no available listings that match, so I have nothing to recommend. The budget looks very low for a 5-bedroom villa in that area. The next step is to call Lina to talk about raising the budget, looking at other areas, or considering other property types. She has no open tasks, so this follow-up won't duplicate one.",
+        "summary": "Lina Haddad wants to buy a 5-bedroom villa in Dubai Marina for no more than AED 900,000, and that budget is firm. We have no available listings that match, so there's nothing to shortlist. This budget is very unlikely to buy a 5-bedroom villa in Dubai Marina. Next step: ask her whether she'd change the area, property type, size or budget.",
         "proposedActions": [
           {
-            "id": "737bbeab-79f0-4d7b-9e7a-f8659bea6c33",
+            "id": "2fc8ba39-b1df-4da8-94e2-49549ccd457b",
             "type": "create_follow_up_task",
             "status": "pending_approval",
             "task": {
               "title": "Call Lina Haddad about her Dubai Marina 5BR villa search",
-              "notes": "We have no available 5-bedroom villas in Dubai Marina up to AED 900,000. Ask whether she can raise her budget, consider other areas, or consider fewer bedrooms or another property type such as an apartment or townhouse. Confirm that she wants to buy.",
-              "dueAt": null
+              "notes": "We have no available 5-bedroom villas in Dubai Marina at or under AED 900,000. Ask whether she'd consider other areas, a smaller unit, an apartment or townhouse, or a higher budget, then run a new search.\n\nTimeline: this week (16-22 Nov 2026), \"Ready to buy this week\". Urgent, so follow up on the next working day after the message.",
+              "dueAt": "2026-11-17T10:00:00+04:00"
             },
-            "needsClarification": "\"this week\" does not point to a single day",
+            "needsClarification": null,
             "taskId": null
           }
         ],
@@ -104,7 +144,7 @@
               "truncated": false,
               "items": []
             },
-            "durationMs": 20
+            "durationMs": 29
           },
           {
             "tool": "get_lead_tasks",
@@ -113,11 +153,11 @@
               "total": 0,
               "items": []
             },
-            "durationMs": 17
+            "durationMs": 24
           }
         ],
-        "createdAt": "2026-11-16T11:52:33.800Z",
-        "model": "claude-sonnet-5-5",
+        "createdAt": "2026-11-16T13:02:12.838Z",
+        "model": "claude-opus-5-5",
         "diagnostics": {
           "droppedRecommendations": [],
           "budgetBand": {
@@ -127,9 +167,29 @@
           },
           "searchSkipped": false,
           "usage": {
-            "inputTokens": 9947,
-            "outputTokens": 760,
-            "totalTokens": 10707
+            "inputTokens": 11277,
+            "outputTokens": 766,
+            "totalTokens": 12043,
+            "cacheReadTokens": 10330,
+            "cacheWriteTokens": 667,
+            "cacheHitRatio": 0.9160237651857763,
+            "estimatedCostUsd": 0.021841,
+            "estimatedCostWithoutCacheUsd": 0.060428
+          },
+          "failureKind": null,
+          "timings": {
+            "startedAt": "2026-11-16T13:02:12.848Z",
+            "finishedAt": "2026-11-16T13:02:22.670Z",
+            "latencyMs": 9822,
+            "phaseAMs": 3002,
+            "phaseBMs": 6820
+          },
+          "selfVerification": {
+            "checkedRecommendations": 0,
+            "issuesFound": [],
+            "revised": false,
+            "rounds": 0,
+            "fallbackReasons": []
           }
         },
         "dataWarnings": []

@@ -1,7 +1,7 @@
 {
   "case": "05-priya-rent",
-  "title": "Rent enquiry against for-sale listings (Priya)",
-  "covers": "3",
+  "title": "Rent enquiry against for-sale listings, moving next month (Priya)",
+  "covers": "3, 4",
   "verdict": "PASS",
   "assertions": [
     {
@@ -21,15 +21,45 @@
       "pass": true,
       "gating": true,
       "detail": "got []"
+    },
+    {
+      "name": "Priya: requirements.timeline is next_month and urgent",
+      "pass": true,
+      "gating": true,
+      "detail": "{\"kind\":\"next_month\",\"quote\":\"moving in next month\",\"windowStart\":\"2026-12-01\",\"windowEnd\":\"2026-12-31\",\"window\":\"1-31 Dec 2026\",\"label\":\"next month (1-31 Dec 2026)\",\"urgent\":true,\"stale\":false}"
+    },
+    {
+      "name": "Priya: exactly one proposed action, pending approval",
+      "pass": true,
+      "gating": true,
+      "detail": "got [\"pending_approval\"]"
+    },
+    {
+      "name": "Priya: dueAt is the next working day after the message: 2026-11-16T10:00:00+04:00",
+      "pass": true,
+      "gating": true,
+      "detail": "\"2026-11-16T10:00:00+04:00\""
+    },
+    {
+      "name": "Priya: needsClarification is null",
+      "pass": true,
+      "gating": true,
+      "detail": "null"
+    },
+    {
+      "name": "Priya: the task notes give the timeline",
+      "pass": true,
+      "gating": true,
+      "detail": "\"Explain that our listings are all for sale, so we have no rentals to offer for her 2-bedroom Business Bay request at about AED 120,000 a year. Ask whether she'd consider buying. If not, refer her to a leasing contact or tell her when rentals might be available.\\n\\nTimeline: next month (1-31 Dec 2026), \\\"moving in next month\\\". Urgent, so follow up on the next working day after the message.\""
     }
   ],
   "runs": [
     {
       "label": "Priya",
       "status": 201,
-      "latencyMs": 8947,
+      "latencyMs": 8800,
       "run": {
-        "id": "0ce20ffd-41e0-4783-9194-0e334d9db7c5",
+        "id": "ed460d4e-b866-4e9c-a574-92fc7553b9f5",
         "leadId": "4e9649a2-b0e3-5342-a303-87e4b5eba73f",
         "messageId": "528b3bb0-1b9c-5a38-8d4a-ba3cc7c3968d",
         "status": "completed",
@@ -44,29 +74,37 @@
           },
           "propertyType": null,
           "intent": "rent",
-          "preferences": [
-            "moving in next month"
-          ],
+          "preferences": [],
           "bedroomsRange": {
             "min": 2,
             "max": 2
           },
           "budgetIsApproximate": true,
-          "prioritiseYield": false
+          "prioritiseYield": false,
+          "timeline": {
+            "kind": "next_month",
+            "quote": "moving in next month",
+            "windowStart": "2026-12-01",
+            "windowEnd": "2026-12-31",
+            "window": "1-31 Dec 2026",
+            "label": "next month (1-31 Dec 2026)",
+            "urgent": true,
+            "stale": false
+          }
         },
         "recommendations": [],
-        "summary": "Priya Nair wants to rent a 2-bedroom in Business Bay for about AED 120,000 a year, and she wants to move in next month. All of the agency's listings are for sale, so I recommended none and did not search. She has no open follow-up tasks. The agent should tell her this and ask whether she would consider buying, or whether she wants a referral for rentals.",
+        "summary": "Priya Nair wants to rent a 2-bedroom in Business Bay for about AED 120,000 a year. All of the agency's listings are for sale, so I didn't search them and there is nothing to recommend. Her budget looks like an annual rent, and none of our sale listings would match it. She has no open follow-up tasks.",
         "proposedActions": [
           {
-            "id": "d39d886d-b0cf-4447-985b-4e5b9f4e8db9",
+            "id": "cb78f0b7-3742-41af-8164-3f1bc86b6dfc",
             "type": "create_follow_up_task",
             "status": "pending_approval",
             "task": {
-              "title": "Call Priya Nair about Business Bay 2BR rental request",
-              "notes": "Priya wants to rent a 2BR in Business Bay at about AED 120k a year and move in next month. Our listings are sale-only. Explain this, then ask if she would consider buying or wants a rental referral. If she is open to buying, run a sale search for Business Bay 2BR.",
-              "dueAt": null
+              "title": "Call Priya Nair about her Business Bay 2BR rental request",
+              "notes": "Explain that our listings are all for sale, so we have no rentals to offer for her 2-bedroom Business Bay request at about AED 120,000 a year. Ask whether she'd consider buying. If not, refer her to a leasing contact or tell her when rentals might be available.\n\nTimeline: next month (1-31 Dec 2026), \"moving in next month\". Urgent, so follow up on the next working day after the message.",
+              "dueAt": "2026-11-16T10:00:00+04:00"
             },
-            "needsClarification": "The lead did not say when to follow up.",
+            "needsClarification": null,
             "taskId": null
           }
         ],
@@ -78,11 +116,11 @@
               "total": 0,
               "items": []
             },
-            "durationMs": 38
+            "durationMs": 12
           }
         ],
-        "createdAt": "2026-11-16T11:52:36.888Z",
-        "model": "claude-sonnet-5-5",
+        "createdAt": "2026-11-16T13:02:15.607Z",
+        "model": "claude-opus-5-5",
         "diagnostics": {
           "droppedRecommendations": [],
           "budgetBand": {
@@ -92,9 +130,29 @@
           },
           "searchSkipped": false,
           "usage": {
-            "inputTokens": 9705,
-            "outputTokens": 556,
-            "totalTokens": 10261
+            "inputTokens": 11055,
+            "outputTokens": 611,
+            "totalTokens": 11666,
+            "cacheReadTokens": 10327,
+            "cacheWriteTokens": 449,
+            "cacheHitRatio": 0.9341474445952058,
+            "estimatedCostUsd": 0.017646400000000003,
+            "estimatedCostWithoutCacheUsd": 0.05644
+          },
+          "failureKind": null,
+          "timings": {
+            "startedAt": "2026-11-16T13:02:15.616Z",
+            "finishedAt": "2026-11-16T13:02:24.323Z",
+            "latencyMs": 8707,
+            "phaseAMs": 2536,
+            "phaseBMs": 6170
+          },
+          "selfVerification": {
+            "checkedRecommendations": 0,
+            "issuesFound": [],
+            "revised": false,
+            "rounds": 0,
+            "fallbackReasons": []
           }
         },
         "dataWarnings": []

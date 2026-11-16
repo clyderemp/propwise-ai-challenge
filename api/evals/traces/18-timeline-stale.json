@@ -1,0 +1,375 @@
+{
+  "case": "18-timeline-stale",
+  "title": "\"This week\" in a message 9 days old: the window is stale",
+  "covers": "4 (timeline)",
+  "verdict": "PASS",
+  "assertions": [
+    {
+      "name": "Stale \"this week\": HTTP 201 and status completed",
+      "pass": true,
+      "gating": true,
+      "detail": "HTTP 201, status completed"
+    },
+    {
+      "name": "requirements.timeline is this_week and stale",
+      "pass": true,
+      "gating": true,
+      "detail": "{\"kind\":\"this_week\",\"quote\":\"Ready to buy this week\",\"windowStart\":\"2026-11-02\",\"windowEnd\":\"2026-11-08\",\"window\":\"2-8 Nov 2026\",\"label\":\"this week (2-8 Nov 2026)\",\"urgent\":true,\"stale\":true}"
+    },
+    {
+      "name": "the summary says the window already ended",
+      "pass": true,
+      "gating": true,
+      "detail": "The lead wants to buy a 2BR apartment in Dubai Marina for about AED 2M. MBR-1002 at AED 1.89M is the best fit because it's under budget. MBR-1001 and MBR-1022 are a little over AED 2M but within the flexible price range. MBR-1024 is the same unit as MBR-1001 (Marina Gate 1, unit 2304, same price and rent), so I left it out. MBR-1022 has no rent figure. Note: the lead's timeline, this week (2-8 Nov 2026), had already ended when this message was analysed. Check whether it still applies."
+    },
+    {
+      "name": "Stale \"this week\": exactly one proposed action, pending approval",
+      "pass": true,
+      "gating": true,
+      "detail": "got [\"pending_approval\"]"
+    },
+    {
+      "name": "dueAt stays anchored on sentAt: 2026-11-09T10:00:00+04:00",
+      "pass": true,
+      "gating": true,
+      "detail": "\"2026-11-09T10:00:00+04:00\""
+    }
+  ],
+  "runs": [
+    {
+      "label": "Stale \"this week\"",
+      "status": 201,
+      "latencyMs": 15227,
+      "run": {
+        "id": "58f05f7d-08d8-4274-905c-e97733c5d27a",
+        "leadId": "0d16ccfd-577f-4e35-b332-e106f3b59392",
+        "messageId": "d1075471-1d93-46a3-9655-f80c54101102",
+        "status": "completed",
+        "requirements": {
+          "locations": [
+            "Dubai Marina"
+          ],
+          "bedrooms": 2,
+          "budgetAed": {
+            "min": null,
+            "max": 2000000
+          },
+          "propertyType": "apartment",
+          "intent": "buy",
+          "preferences": [],
+          "bedroomsRange": {
+            "min": 2,
+            "max": 2
+          },
+          "budgetIsApproximate": true,
+          "prioritiseYield": false,
+          "timeline": {
+            "kind": "this_week",
+            "quote": "Ready to buy this week",
+            "windowStart": "2026-11-02",
+            "windowEnd": "2026-11-08",
+            "window": "2-8 Nov 2026",
+            "label": "this week (2-8 Nov 2026)",
+            "urgent": true,
+            "stale": true
+          }
+        },
+        "recommendations": [
+          {
+            "propertyId": "21a641ec-60a8-5886-b8ec-7ae82baa48b8",
+            "reason": "MBR-1002 is a 2BR apartment of 1,410 sqft in Princess Tower, Dubai Marina, listed at AED 1,890,000. It is within budget, has a gross yield of 6.61% and is available.",
+            "property": {
+              "reference": "MBR-1002",
+              "title": "Spacious 2BR in Princess Tower",
+              "area": "Dubai Marina",
+              "building": "Princess Tower",
+              "type": "apartment",
+              "bedrooms": 2,
+              "sizeSqft": 1410,
+              "priceAed": 1890000,
+              "annualRentAed": 125000,
+              "grossYieldPct": 6.61,
+              "status": "available",
+              "flags": []
+            }
+          },
+          {
+            "propertyId": "473a131f-4f8c-52d5-88d5-88ac173f49ea",
+            "reason": "MBR-1001 is a 2BR apartment of 1,320 sqft with marina views in Marina Gate 1, Dubai Marina, listed at AED 2,050,000. It has a gross yield of 7.32%, is available and currently has a tenant (unit 2304).",
+            "property": {
+              "reference": "MBR-1001",
+              "title": "Marina-view 2BR in Marina Gate 1",
+              "area": "Dubai Marina",
+              "building": "Marina Gate 1",
+              "type": "apartment",
+              "bedrooms": 2,
+              "sizeSqft": 1320,
+              "priceAed": 2050000,
+              "annualRentAed": 150000,
+              "grossYieldPct": 7.32,
+              "status": "available",
+              "flags": [
+                "possible_duplicate"
+              ]
+            }
+          },
+          {
+            "propertyId": "bcb641ba-26bb-5bbc-8672-ba7a3c2edbff",
+            "reason": "MBR-1022 is a 2BR apartment of 1,250 sqft in Marina Quays West, Dubai Marina, listed at AED 2,099,000 and available. The rent is unknown, so there is no gross yield figure.",
+            "property": {
+              "reference": "MBR-1022",
+              "title": "2BR in Marina Quays West",
+              "area": "Dubai Marina",
+              "building": "Marina Quays West",
+              "type": "apartment",
+              "bedrooms": 2,
+              "sizeSqft": 1250,
+              "priceAed": 2099000,
+              "annualRentAed": null,
+              "grossYieldPct": null,
+              "status": "available",
+              "flags": [
+                "rent_missing"
+              ]
+            }
+          }
+        ],
+        "summary": "The lead wants to buy a 2BR apartment in Dubai Marina for about AED 2M. MBR-1002 at AED 1.89M is the best fit because it's under budget. MBR-1001 and MBR-1022 are a little over AED 2M but within the flexible price range. MBR-1024 is the same unit as MBR-1001 (Marina Gate 1, unit 2304, same price and rent), so I left it out. MBR-1022 has no rent figure. Note: the lead's timeline, this week (2-8 Nov 2026), had already ended when this message was analysed. Check whether it still applies.",
+        "proposedActions": [
+          {
+            "id": "6412a5f0-a984-43fd-90fc-28c3ece79682",
+            "type": "create_follow_up_task",
+            "status": "pending_approval",
+            "task": {
+              "title": "Call lead about Dubai Marina 2BR options",
+              "notes": "Go through MBR-1002 (AED 1.89M, 6.61% gross yield), MBR-1001 (AED 2.05M, 7.32%, has a tenant) and MBR-1022 (AED 2.099M, rent unknown). Check whether the lead can go slightly over AED 2M and is happy to buy a unit with a tenant in it. MBR-1024 is the same unit as MBR-1001.\n\nTimeline: this week (2-8 Nov 2026), \"Ready to buy this week\". Urgent, so follow up on the next working day after the message.",
+              "dueAt": "2026-11-09T10:00:00+04:00"
+            },
+            "needsClarification": null,
+            "taskId": null
+          }
+        ],
+        "trace": [
+          {
+            "tool": "get_lead_tasks",
+            "input": {},
+            "output": {
+              "total": 0,
+              "items": []
+            },
+            "durationMs": 23
+          },
+          {
+            "tool": "search_listings",
+            "input": {
+              "area": "Dubai Marina",
+              "propertyType": "apartment",
+              "minBedrooms": 2,
+              "maxBedrooms": 2,
+              "minPriceAed": 1800000,
+              "maxPriceAed": 2100000,
+              "status": "available",
+              "reference": null
+            },
+            "output": {
+              "total": 4,
+              "truncated": false,
+              "items": [
+                {
+                  "id": "21a641ec-60a8-5886-b8ec-7ae82baa48b8",
+                  "reference": "MBR-1002",
+                  "title": "Spacious 2BR in Princess Tower",
+                  "area": "Dubai Marina",
+                  "building": "Princess Tower",
+                  "type": "apartment",
+                  "bedrooms": 2,
+                  "sizeSqft": 1410,
+                  "priceAed": 1890000,
+                  "annualRentAed": 125000,
+                  "grossYieldPct": 6.61,
+                  "status": "available",
+                  "flags": []
+                },
+                {
+                  "id": "473a131f-4f8c-52d5-88d5-88ac173f49ea",
+                  "reference": "MBR-1001",
+                  "title": "Marina-view 2BR in Marina Gate 1",
+                  "area": "Dubai Marina",
+                  "building": "Marina Gate 1",
+                  "type": "apartment",
+                  "bedrooms": 2,
+                  "sizeSqft": 1320,
+                  "priceAed": 2050000,
+                  "annualRentAed": 150000,
+                  "grossYieldPct": 7.32,
+                  "status": "available",
+                  "flags": [
+                    "possible_duplicate"
+                  ]
+                },
+                {
+                  "id": "fd0bba47-47be-5eaa-8534-185b5cd796e8",
+                  "reference": "MBR-1024",
+                  "title": "Marina view 2BR, Marina Gate 1 (high floor)",
+                  "area": "Dubai Marina",
+                  "building": "Marina Gate 1",
+                  "type": "apartment",
+                  "bedrooms": 2,
+                  "sizeSqft": 1320,
+                  "priceAed": 2050000,
+                  "annualRentAed": 150000,
+                  "grossYieldPct": 7.32,
+                  "status": "available",
+                  "flags": [
+                    "possible_duplicate"
+                  ]
+                },
+                {
+                  "id": "bcb641ba-26bb-5bbc-8672-ba7a3c2edbff",
+                  "reference": "MBR-1022",
+                  "title": "2BR in Marina Quays West",
+                  "area": "Dubai Marina",
+                  "building": "Marina Quays West",
+                  "type": "apartment",
+                  "bedrooms": 2,
+                  "sizeSqft": 1250,
+                  "priceAed": 2099000,
+                  "annualRentAed": null,
+                  "grossYieldPct": null,
+                  "status": "available",
+                  "flags": [
+                    "rent_missing"
+                  ]
+                }
+              ]
+            },
+            "durationMs": 28
+          },
+          {
+            "tool": "get_listing_details",
+            "input": {
+              "propertyId": "fd0bba47-47be-5eaa-8534-185b5cd796e8"
+            },
+            "output": {
+              "id": "fd0bba47-47be-5eaa-8534-185b5cd796e8",
+              "reference": "MBR-1024",
+              "title": "Marina view 2BR, Marina Gate 1 (high floor)",
+              "area": "Dubai Marina",
+              "building": "Marina Gate 1",
+              "type": "apartment",
+              "bedrooms": 2,
+              "sizeSqft": 1320,
+              "priceAed": 2050000,
+              "annualRentAed": 150000,
+              "grossYieldPct": 7.32,
+              "status": "available",
+              "flags": [
+                "possible_duplicate"
+              ],
+              "features": {
+                "unitNumber": "2304",
+                "occupancy": "tenanted",
+                "furnished": null,
+                "views": [
+                  "marina"
+                ]
+              }
+            },
+            "durationMs": 5
+          },
+          {
+            "tool": "get_listing_details",
+            "input": {
+              "propertyId": "473a131f-4f8c-52d5-88d5-88ac173f49ea"
+            },
+            "output": {
+              "id": "473a131f-4f8c-52d5-88d5-88ac173f49ea",
+              "reference": "MBR-1001",
+              "title": "Marina-view 2BR in Marina Gate 1",
+              "area": "Dubai Marina",
+              "building": "Marina Gate 1",
+              "type": "apartment",
+              "bedrooms": 2,
+              "sizeSqft": 1320,
+              "priceAed": 2050000,
+              "annualRentAed": 150000,
+              "grossYieldPct": 7.32,
+              "status": "available",
+              "flags": [
+                "possible_duplicate"
+              ],
+              "features": {
+                "unitNumber": "2304",
+                "occupancy": "tenanted",
+                "furnished": null,
+                "views": [
+                  "marina"
+                ]
+              }
+            },
+            "durationMs": 8
+          }
+        ],
+        "createdAt": "2026-11-16T13:03:07.754Z",
+        "model": "claude-opus-5-5",
+        "diagnostics": {
+          "droppedRecommendations": [],
+          "budgetBand": {
+            "floorAed": 1800000,
+            "ceilingAed": 2100000,
+            "approximate": true
+          },
+          "searchSkipped": false,
+          "usage": {
+            "inputTokens": 16702,
+            "outputTokens": 1474,
+            "totalTokens": 18176,
+            "cacheReadTokens": 14413,
+            "cacheWriteTokens": 2004,
+            "cacheHitRatio": 0.8629505448449287,
+            "estimatedCostUsd": 0.0435226,
+            "estimatedCostWithoutCacheUsd": 0.096288
+          },
+          "failureKind": null,
+          "timings": {
+            "startedAt": "2026-11-16T13:03:07.758Z",
+            "finishedAt": "2026-11-16T13:03:22.943Z",
+            "latencyMs": 15185,
+            "phaseAMs": 2696,
+            "phaseBMs": 12488
+          },
+          "selfVerification": {
+            "checkedRecommendations": 3,
+            "issuesFound": [],
+            "revised": false,
+            "rounds": 0,
+            "fallbackReasons": []
+          }
+        },
+        "dataWarnings": [
+          {
+            "propertyId": "473a131f-4f8c-52d5-88d5-88ac173f49ea",
+            "reference": "MBR-1001",
+            "flags": [
+              "possible_duplicate"
+            ]
+          },
+          {
+            "propertyId": "bcb641ba-26bb-5bbc-8672-ba7a3c2edbff",
+            "reference": "MBR-1022",
+            "flags": [
+              "rent_missing"
+            ]
+          },
+          {
+            "propertyId": "fd0bba47-47be-5eaa-8534-185b5cd796e8",
+            "reference": "MBR-1024",
+            "flags": [
+              "possible_duplicate"
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

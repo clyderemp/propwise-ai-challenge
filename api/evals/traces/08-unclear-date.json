@@ -26,7 +26,7 @@
       "name": "needsClarification explains why",
       "pass": true,
       "gating": true,
-      "detail": "\"The lead gave no specific day or time, only 'sometime when you get a chance'.\""
+      "detail": "\"Lead asked to be contacted 'sometime' with no specific day.\""
     },
     {
       "name": "Unclear timing: recommends nothing",
@@ -39,11 +39,11 @@
     {
       "label": "Unclear timing",
       "status": 201,
-      "latencyMs": 6280,
+      "latencyMs": 9256,
       "run": {
-        "id": "b0559ebf-48f6-48e6-b5f4-628c788663f8",
-        "leadId": "51ab0d0b-69d5-43ad-890b-64a3d100bcc9",
-        "messageId": "e4f10c09-212f-46a7-96fb-da51f8a832a4",
+        "id": "c14109f2-dc5a-49ee-8db7-31c9470c4555",
+        "leadId": "13998584-c5f3-4253-82a7-4899b3d754f4",
+        "messageId": "6fc78eea-b782-40c0-a1e7-d459f29424a4",
         "status": "completed",
         "requirements": {
           "locations": [],
@@ -60,21 +60,22 @@
             "max": null
           },
           "budgetIsApproximate": false,
-          "prioritiseYield": false
+          "prioritiseYield": false,
+          "timeline": null
         },
         "recommendations": [],
-        "summary": "The lead gave no property criteria: no area, property type, bedrooms, budget or intent, and no listing code. Timing is also unclear. I ran no listing search and recommend nothing. The lead has no open follow-up tasks. The next step is to contact them and find out what they want.",
+        "summary": "I didn't recommend any listings because the lead's message gave no criteria: no area, property type, bedrooms or budget, and it isn't clear whether they want to buy or rent. Without these, a search wouldn't be meaningful. The lead has no open follow-up tasks. The next step is to contact them to find out what they're looking for and when.",
         "proposedActions": [
           {
-            "id": "1df9c13c-9813-46fa-8d99-fff03655f7a3",
+            "id": "ce6db247-9481-43be-86da-56a11a7d649b",
             "type": "create_follow_up_task",
             "status": "pending_approval",
             "task": {
               "title": "Contact lead to clarify property requirements and timing",
-              "notes": "The lead's message had no criteria. Ask whether they want to buy or rent (our listings are for sale), and which areas, property type and bedrooms they want. Ask for their budget and timeline, and whether yield matters to them. Then shortlist listings.",
+              "notes": "Ask whether they want to buy or rent. If buying, ask about preferred areas, property type, number of bedrooms, budget in AED, whether it's an investment or for living in, and when they plan to act. Then run a listing search.",
               "dueAt": null
             },
-            "needsClarification": "The lead gave no specific day or time, only 'sometime when you get a chance'.",
+            "needsClarification": "Lead asked to be contacted 'sometime' with no specific day.",
             "taskId": null
           }
         ],
@@ -86,20 +87,34 @@
               "total": 0,
               "items": []
             },
-            "durationMs": 37
+            "durationMs": 16
           }
         ],
-        "createdAt": "2026-11-16T11:52:45.809Z",
-        "model": "claude-sonnet-5-5",
+        "createdAt": "2026-11-16T13:02:24.535Z",
+        "model": "claude-opus-5-5",
         "diagnostics": {
           "droppedRecommendations": [],
           "budgetBand": null,
           "searchSkipped": true,
           "usage": {
-            "inputTokens": 7706,
-            "outputTokens": 477,
-            "totalTokens": 8183
-          }
+            "inputTokens": 9060,
+            "outputTokens": 645,
+            "totalTokens": 9705,
+            "cacheReadTokens": 8801,
+            "cacheWriteTokens": 0,
+            "cacheHitRatio": 0.9714128035320089,
+            "estimatedCostUsd": 0.0156962,
+            "estimatedCostWithoutCacheUsd": 0.04914
+          },
+          "failureKind": null,
+          "timings": {
+            "startedAt": "2026-11-16T13:02:24.543Z",
+            "finishedAt": "2026-11-16T13:02:33.730Z",
+            "latencyMs": 9187,
+            "phaseAMs": 2822,
+            "phaseBMs": 6364
+          },
+          "selfVerification": null
         },
         "dataWarnings": []
       }

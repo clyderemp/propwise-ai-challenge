@@ -102,8 +102,10 @@ describe('checkSelfVerification (eval 16, over the recorded Karim trace)', () =>
     expect(checks.filter((c) => /reason passes claim-check/.test(c.name))).toHaveLength(3);
   });
 
-  it('fails a run stored without the record (the recorded trace predates it)', () => {
-    const run = recorded.runs[0].run;
+  it('fails a run stored without the record', () => {
+    // Strip the record explicitly so the test does not depend on how old the committed trace is.
+    const stored = recorded.runs[0].run;
+    const run: typeof stored = { ...stored, diagnostics: stored.diagnostics && { ...stored.diagnostics, selfVerification: undefined } };
     expect(failed(checkSelfVerification(run, props(run)))).toEqual(['diagnostics.selfVerification has the expected shape']);
   });
 

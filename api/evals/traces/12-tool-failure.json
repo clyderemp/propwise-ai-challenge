@@ -50,9 +50,9 @@
     {
       "label": "Karim with search_listings failing",
       "status": 201,
-      "latencyMs": 5331,
+      "latencyMs": 6262,
       "run": {
-        "id": "4c1a84fa-eea3-4403-beec-1450b0c3d270",
+        "id": "9393273a-4c60-4b4b-9bea-4080a74cef85",
         "leadId": "310661c8-6de3-5b3f-80c8-ca4ef71e55b1",
         "messageId": "536370e0-95b4-539e-943b-4a67509c0bea",
         "status": "failed",
@@ -85,7 +85,7 @@
               "reference": null
             },
             "error": "Injected fault: search_listings is unavailable.",
-            "durationMs": 3
+            "durationMs": 4
           },
           {
             "tool": "get_lead_tasks",
@@ -100,19 +100,32 @@
                 }
               ]
             },
-            "durationMs": 161
+            "durationMs": 150
           }
         ],
-        "createdAt": "2026-11-16T11:53:21.613Z",
-        "model": "claude-sonnet-5-5",
+        "createdAt": "2026-11-16T13:03:31.272Z",
+        "model": "claude-opus-5-5",
         "diagnostics": {
           "droppedRecommendations": [],
           "budgetBand": null,
           "searchSkipped": false,
           "usage": {
-            "inputTokens": 6582,
-            "outputTokens": 481,
-            "totalTokens": 7063
+            "inputTokens": 7904,
+            "outputTokens": 523,
+            "totalTokens": 8427,
+            "cacheReadTokens": 7596,
+            "cacheWriteTokens": 0,
+            "cacheHitRatio": 0.9610323886639676,
+            "estimatedCostUsd": 0.013211200000000001,
+            "estimatedCostWithoutCacheUsd": 0.042076
+          },
+          "failureKind": "tool",
+          "timings": {
+            "startedAt": "2026-11-16T13:03:31.278Z",
+            "finishedAt": "2026-11-16T13:03:37.503Z",
+            "latencyMs": 6225,
+            "phaseAMs": null,
+            "phaseBMs": null
           }
         },
         "dataWarnings": []

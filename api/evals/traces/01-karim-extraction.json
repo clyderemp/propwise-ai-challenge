@@ -51,9 +51,9 @@
     {
       "label": "Karim (shared run)",
       "status": 201,
-      "latencyMs": 10327,
+      "latencyMs": 16293,
       "run": {
-        "id": "2a06a7a9-28b6-4d80-baf9-7104ea27d1e3",
+        "id": "a86bbd58-a0ef-451f-8a81-6f01f5b3041f",
         "leadId": "310661c8-6de3-5b3f-80c8-ca4ef71e55b1",
         "messageId": "536370e0-95b4-539e-943b-4a67509c0bea",
         "status": "completed",
@@ -76,12 +76,13 @@
             "max": 2
           },
           "budgetIsApproximate": true,
-          "prioritiseYield": true
+          "prioritiseYield": true,
+          "timeline": null
         },
         "recommendations": [
           {
             "propertyId": "473a131f-4f8c-52d5-88d5-88ac173f49ea",
-            "reason": "2BR apartment in Marina Gate 1, Dubai Marina, asking AED 2,050,000 with a gross yield of 7.32% (estimated rent AED 150,000). Status: available.",
+            "reason": "This 2BR apartment in Marina Gate 1, Dubai Marina, is available at AED 2,050,000. Estimated rent is AED 150,000 a year, a gross yield of 7.32%. It is tenanted (unit 2304) with marina views, and the price is slightly above the approximate AED 2M budget.",
             "property": {
               "reference": "MBR-1001",
               "title": "Marina-view 2BR in Marina Gate 1",
@@ -101,7 +102,7 @@
           },
           {
             "propertyId": "21a641ec-60a8-5886-b8ec-7ae82baa48b8",
-            "reason": "2BR apartment in Princess Tower, Dubai Marina, asking AED 1,890,000 with a gross yield of 6.61% (estimated rent AED 125,000). Status: available.",
+            "reason": "This 2BR apartment in Princess Tower, Dubai Marina, is available at AED 1,890,000. Estimated rent is AED 125,000 a year, a gross yield of 6.61%.",
             "property": {
               "reference": "MBR-1002",
               "title": "Spacious 2BR in Princess Tower",
@@ -119,7 +120,7 @@
           },
           {
             "propertyId": "bcb641ba-26bb-5bbc-8672-ba7a3c2edbff",
-            "reason": "2BR apartment in Marina Quays West, Dubai Marina, asking AED 2,099,000. Rent is unknown, so no yield figure is available. Status: available.",
+            "reason": "This 2BR apartment in Marina Quays West, Dubai Marina, is available at AED 2,099,000, slightly above the approximate AED 2M budget. Its rent is unknown, so there is no yield figure.",
             "property": {
               "reference": "MBR-1022",
               "title": "2BR in Marina Quays West",
@@ -138,15 +139,15 @@
             }
           }
         ],
-        "summary": "Karim wants to buy a 2BR apartment in Dubai Marina for about AED 2M, and he cares most about rental yield. Marina Gate 1 (MBR-1001) has the highest yield at 7.32%. Princess Tower (MBR-1002) is next at 6.61% and sits under budget. MBR-1022 has no rent data, so I ranked it last. MBR-1001 and MBR-1024 look like duplicate listings of the same Marina Gate 1 unit, so I recommended only MBR-1001. MBR-1022 is at the top of the flexible budget range.",
+        "summary": "Karim wants to buy a 2BR apartment in Dubai Marina for about AED 2M and cares most about rental yield. The best yield is the Marina Gate 1 unit (MBR-1001) at 7.32%, followed by Princess Tower (MBR-1002) at 6.61%. MBR-1002 is also the only option under AED 2M. MBR-1001 and MBR-1024 are the same unit listed twice (unit 2304, tenanted), so I've included only MBR-1001. MBR-1022 has no rent data, so its yield can't be worked out.",
         "proposedActions": [
           {
-            "id": "f55cbb7c-0958-468d-99ad-c60d879d0ec7",
+            "id": "b912ebad-969f-4b27-937c-791dbacd74f3",
             "type": "create_follow_up_task",
             "status": "pending_approval",
             "task": {
               "title": "Call Karim about Dubai Marina 2BR options",
-              "notes": "Present MBR-1001 (7.32% yield, AED 2.05M), MBR-1002 (6.61%, AED 1.89M) and MBR-1022 (AED 2.099M, rent unknown). Confirm whether MBR-1001 and MBR-1024 are the same unit. Get the rent estimate for MBR-1022. Check how flexible his AED 2M budget is and arrange viewings.",
+              "notes": "1. Go through the options in order of yield: MBR-1001 (Marina Gate 1, AED 2.05M, 7.32%, tenanted unit 2304), then MBR-1002 (Princess Tower, AED 1.89M, 6.61%). 2. Check whether he's comfortable going slightly over AED 2M. 3. Check whether a tenanted unit works for him. 4. Get rent figures for MBR-1022 (AED 2.099M) before presenting it. 5. MBR-1024 is a duplicate of MBR-1001 (same unit), so it should be cleaned up.",
               "dueAt": "2026-11-17T10:00:00+04:00"
             },
             "needsClarification": null,
@@ -238,7 +239,7 @@
                 }
               ]
             },
-            "durationMs": 63
+            "durationMs": 14
           },
           {
             "tool": "get_lead_tasks",
@@ -247,11 +248,75 @@
               "total": 0,
               "items": []
             },
-            "durationMs": 59
+            "durationMs": 14
+          },
+          {
+            "tool": "get_listing_details",
+            "input": {
+              "propertyId": "473a131f-4f8c-52d5-88d5-88ac173f49ea"
+            },
+            "output": {
+              "id": "473a131f-4f8c-52d5-88d5-88ac173f49ea",
+              "reference": "MBR-1001",
+              "title": "Marina-view 2BR in Marina Gate 1",
+              "area": "Dubai Marina",
+              "building": "Marina Gate 1",
+              "type": "apartment",
+              "bedrooms": 2,
+              "sizeSqft": 1320,
+              "priceAed": 2050000,
+              "annualRentAed": 150000,
+              "grossYieldPct": 7.32,
+              "status": "available",
+              "flags": [
+                "possible_duplicate"
+              ],
+              "features": {
+                "unitNumber": "2304",
+                "occupancy": "tenanted",
+                "furnished": null,
+                "views": [
+                  "marina"
+                ]
+              }
+            },
+            "durationMs": 18
+          },
+          {
+            "tool": "get_listing_details",
+            "input": {
+              "propertyId": "fd0bba47-47be-5eaa-8534-185b5cd796e8"
+            },
+            "output": {
+              "id": "fd0bba47-47be-5eaa-8534-185b5cd796e8",
+              "reference": "MBR-1024",
+              "title": "Marina view 2BR, Marina Gate 1 (high floor)",
+              "area": "Dubai Marina",
+              "building": "Marina Gate 1",
+              "type": "apartment",
+              "bedrooms": 2,
+              "sizeSqft": 1320,
+              "priceAed": 2050000,
+              "annualRentAed": 150000,
+              "grossYieldPct": 7.32,
+              "status": "available",
+              "flags": [
+                "possible_duplicate"
+              ],
+              "features": {
+                "unitNumber": "2304",
+                "occupancy": "tenanted",
+                "furnished": null,
+                "views": [
+                  "marina"
+                ]
+              }
+            },
+            "durationMs": 20
           }
         ],
-        "createdAt": "2026-11-16T11:52:23.463Z",
-        "model": "claude-sonnet-5-5",
+        "createdAt": "2026-11-16T13:01:56.466Z",
+        "model": "claude-opus-5-5",
         "diagnostics": {
           "droppedRecommendations": [],
           "budgetBand": {
@@ -261,9 +326,29 @@
           },
           "searchSkipped": false,
           "usage": {
-            "inputTokens": 10658,
-            "outputTokens": 1171,
-            "totalTokens": 11829
+            "inputTokens": 16730,
+            "outputTokens": 1573,
+            "totalTokens": 18303,
+            "cacheReadTokens": 14423,
+            "cacheWriteTokens": 1995,
+            "cacheHitRatio": 0.862104004781829,
+            "estimatedCostUsd": 0.0455676,
+            "estimatedCostWithoutCacheUsd": 0.09838
+          },
+          "failureKind": null,
+          "timings": {
+            "startedAt": "2026-11-16T13:01:56.474Z",
+            "finishedAt": "2026-11-16T13:02:12.696Z",
+            "latencyMs": 16222,
+            "phaseAMs": 3519,
+            "phaseBMs": 12702
+          },
+          "selfVerification": {
+            "checkedRecommendations": 3,
+            "issuesFound": [],
+            "revised": false,
+            "rounds": 0,
+            "fallbackReasons": []
           }
         },
         "dataWarnings": [

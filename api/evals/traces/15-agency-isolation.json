@@ -26,7 +26,7 @@
       "name": "no Marina Bay listing anywhere in the trace outputs",
       "pass": true,
       "gating": true,
-      "detail": "[\"get_lead_tasks\",\"search_listings\"]"
+      "detail": "[\"search_listings\",\"get_lead_tasks\"]"
     },
     {
       "name": "Nadia as Omar: DKP-2001 reason quotes only the computed gross yield",
@@ -63,9 +63,9 @@
     {
       "label": "Nadia as Omar",
       "status": 201,
-      "latencyMs": 7685,
+      "latencyMs": 11045,
       "run": {
-        "id": "1acdb98e-9326-4e1d-bfac-25b8c5204da8",
+        "id": "0eca6e6c-c8b3-470b-8e76-1849155f23c3",
         "leadId": "78f4733d-3f7d-523d-9e80-afde5280f5db",
         "messageId": "4d644d3e-77ce-501f-8367-ceb6acdfee87",
         "status": "completed",
@@ -86,12 +86,13 @@
             "max": 2
           },
           "budgetIsApproximate": false,
-          "prioritiseYield": false
+          "prioritiseYield": false,
+          "timeline": null
         },
         "recommendations": [
           {
             "propertyId": "c59d90ac-dbc5-5216-a9df-7799babf91b3",
-            "reason": "2BR apartment in Marina Quays East, Dubai Marina at AED 1,980,000, gross yield 7.58%.",
+            "reason": "DKP-2001 is a 2-bedroom, 1,280 sqft apartment in Marina Quays East, Dubai Marina. It is listed at AED 1,980,000, has an estimated gross yield of 7.58% (AED 150,000 a year in rent) and is available.",
             "property": {
               "reference": "DKP-2001",
               "title": "2BR in Marina Quays East",
@@ -108,15 +109,15 @@
             }
           }
         ],
-        "summary": "Nadia wants a 2-bedroom in Dubai Marina with a budget up to AED 2,000,000. Her intent (buy or rent) is not clear. One available listing fits: DKP-2001, with no data flags. These listings are for sale only, so check whether she wants to buy. Next step is to contact her.",
+        "summary": "",
         "proposedActions": [
           {
-            "id": "04f545d7-11cd-49dc-ab84-4f54d306e6f1",
+            "id": "5a87a429-df6c-4bfb-b305-b478bda87f77",
             "type": "create_follow_up_task",
             "status": "pending_approval",
             "task": {
-              "title": "Contact Nadia Rahman about Dubai Marina 2BR options",
-              "notes": "Confirm she wants to buy, not rent, since our listings are for sale only. Present DKP-2001 (Marina Quays East, AED 1,980,000, 7.58% gross yield). Ask about flexibility on budget, area and property type, and about her preferences, as only one listing matched.",
+              "title": "Call Nadia about the Dubai Marina 2BR option",
+              "notes": "Present DKP-2001 (2BR apartment in Marina Quays East, AED 1,980,000, 7.58% gross yield, available). Ask whether she plans to live in the unit or buy it as an investment. Also check whether her AED 2,000,000 budget has any room to stretch, since only one listing fits right now.",
               "dueAt": "2026-11-17T10:00:00+04:00"
             },
             "needsClarification": null,
@@ -124,15 +125,6 @@
           }
         ],
         "trace": [
-          {
-            "tool": "get_lead_tasks",
-            "input": {},
-            "output": {
-              "total": 0,
-              "items": []
-            },
-            "durationMs": 19
-          },
           {
             "tool": "search_listings",
             "input": {
@@ -166,11 +158,20 @@
                 }
               ]
             },
-            "durationMs": 28
+            "durationMs": 35
+          },
+          {
+            "tool": "get_lead_tasks",
+            "input": {},
+            "output": {
+              "total": 0,
+              "items": []
+            },
+            "durationMs": 32
           }
         ],
-        "createdAt": "2026-11-16T11:53:11.520Z",
-        "model": "claude-sonnet-5-5",
+        "createdAt": "2026-11-16T13:03:00.015Z",
+        "model": "claude-opus-5-5",
         "diagnostics": {
           "droppedRecommendations": [],
           "budgetBand": {
@@ -180,9 +181,29 @@
           },
           "searchSkipped": false,
           "usage": {
-            "inputTokens": 10059,
-            "outputTokens": 849,
-            "totalTokens": 10908
+            "inputTokens": 11389,
+            "outputTokens": 819,
+            "totalTokens": 12208,
+            "cacheReadTokens": 10333,
+            "cacheWriteTokens": 822,
+            "cacheHitRatio": 0.9072789533760647,
+            "estimatedCostUsd": 0.0234926,
+            "estimatedCostWithoutCacheUsd": 0.061936
+          },
+          "failureKind": null,
+          "timings": {
+            "startedAt": "2026-11-16T13:03:00.020Z",
+            "finishedAt": "2026-11-16T13:03:10.964Z",
+            "latencyMs": 10944,
+            "phaseAMs": 2726,
+            "phaseBMs": 8217
+          },
+          "selfVerification": {
+            "checkedRecommendations": 1,
+            "issuesFound": [],
+            "revised": false,
+            "rounds": 0,
+            "fallbackReasons": []
           }
         },
         "dataWarnings": []

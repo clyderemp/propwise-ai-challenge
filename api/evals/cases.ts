@@ -444,12 +444,21 @@ export const CASES: EvalCase[] = [
         ctx.api.startRun(ctx.sara, lead('hassan'), 'Hassan ("Hi")'),
         ctx.api.startRun(ctx.sara, lead('sophie'), 'Sophie ("back to you by Thursday")'),
       ]);
-      for (const run of [hassan, sophie]) {
-        rec.use(run);
-        if (!checkCompleted(rec, run)) continue;
-        rec.check(`${run.label}: no search_listings call (nothing to search for)`, !tools(run).includes('search_listings'), json(tools(run)));
-        checkEmptyRecommendations(rec, run);
-        rec.check(`${run.label}: diagnostics.searchSkipped is true`, run.run.diagnostics?.searchSkipped === true, json(run.run.diagnostics?.searchSkipped));
+      // Hassan ("Hi"): nothing to search for, anywhere in the conversation or profile.
+      rec.use(hassan);
+      if (checkCompleted(rec, hassan)) {
+        rec.check(`${hassan.label}: no search_listings call (nothing to search for)`, !tools(hassan).includes('search_listings'), json(tools(hassan)));
+        checkEmptyRecommendations(rec, hassan);
+        rec.check(`${hassan.label}: diagnostics.searchSkipped is true`, hassan.run.diagnostics?.searchSkipped === true, json(hassan.run.diagnostics?.searchSkipped));
+      }
+      // Sophie (UAT ruling, plan 8.2): her latest message has no criteria, but her profile says she is
+      // buying and the thread is the Burj Vista counter-offer, so the right tool IS a search, and the
+      // only listing it may surface is that unit (MBR-1015, Downtown Dubai).
+      rec.use(sophie);
+      if (checkCompleted(rec, sophie)) {
+        rec.check(`${sophie.label}: intent is buy (from her profile and the thread)`, sophie.run.requirements.intent === 'buy', json(sophie.run.requirements.intent));
+        rec.check(`${sophie.label}: searches listings (context gives criteria)`, tools(sophie).includes('search_listings'), json(tools(sophie)));
+        checkSubset(rec, sophie, ['MBR-1015']);
       }
 
       const leadId = await ctx.api.newLead(ctx.sara, 'Eval: listing code', [{ body: 'Is MBR-1009 still available?', sentAt: '2026-10-14T08:00:00Z' }]);
