@@ -1,4 +1,4 @@
-import { checkReasonClaims, parseAedAmounts } from './claim-check';
+import { checkReasonClaims, parseAedAmounts, reasonMatchesListing } from './claim-check';
 import { factualReason } from './matching';
 import { byRef, loadSeedListings, MARINA_BAY_ID } from './seed-listings.fixture';
 
@@ -107,5 +107,70 @@ describe('checkReasonClaims', () => {
   it('reports each distinct problem once', () => {
     const issues = checkReasonClaims('MBR-1002 is a 3BR in Princess Tower at AED 1,890,000 with a 9% yield.', mbr1001, ctx);
     expect(kinds(issues).sort()).toEqual(['bedrooms', 'location', 'other_listing', 'price', 'yield']);
+  });
+});
+
+describe('reasonMatchesListing', () => {
+  const m1001 = byRef(marina, 'MBR-1001'); // AED 2,050,000, rent 150,000, 7.32%
+  const m1022 = byRef(marina, 'MBR-1022'); // AED 2,099,000, rent unknown
+
+  it('accepts figures that match the row, at the precision written', () => {
+    expect(reasonMatchesListing('MBR-1001 is a 2BR asking AED 2,050,000 with a 7.32% gross yield.', m1001)).toBe(true);
+    expect(reasonMatchesListing('About AED 2.05M, 7.3% yield, rent AED 150,000 a year.', m1001)).toBe(true);
+    expect(reasonMatchesListing('Asking 2.1M AED; rent is unknown, so no yield.', m1022)).toBe(true);
+    expect(reasonMatchesListing('A good fit in Marina Gate 1.', m1001)).toBe(true);
+  });
+
+  it('rejects a wrong price, a wrong yield, a yield for unknown rent, or another listing code', () => {
+    expect(reasonMatchesListing('Asking AED 1,900,000 with a 7.32% gross yield.', m1001)).toBe(false);
+    expect(reasonMatchesListing('AED 2,050,000 with a 8.1% gross yield.', m1001)).toBe(false);
+    expect(reasonMatchesListing('7.1% yield at AED 2.099M.', m1022)).toBe(false);
+    expect(reasonMatchesListing('Like MBR-1007, a solid choice at AED 2,050,000.', m1001)).toBe(false);
+  });
+});
+
+
+describe('checkReasonClaims: only clear contradictions of a fact about this listing (review false positives)', () => {
+  const mbr1001 = byRef(marina, 'MBR-1001'); // 2BR, AED 2,050,000, rent 150,000 (12,500/month), 1,320 sqft (AED 1,553/sqft), available
+  const mbr1006 = byRef(marina, 'MBR-1006'); // reserved
+  const mbr1009 = byRef(marina, 'MBR-1009'); // 1BR
+  const mbr1022 = byRef(marina, 'MBR-1022'); // rent unknown
+
+  it("accepts bedroom counts that describe the lead's request or a comparison", () => {
+    expect(checkReasonClaims('2-bed as requested, unlike a studio.', mbr1001, ctx)).toEqual([]);
+    expect(checkReasonClaims('A 1BR, inside the studio to 2-bed range the lead asked for.', mbr1009, ctx)).toEqual([]);
+    expect(checkReasonClaims('Larger than the 1-bed the lead first wanted.', mbr1001, ctx)).toEqual([]);
+  });
+
+  it('accepts status words in amenity phrases', () => {
+    expect(checkReasonClaims('Reserved parking, available amenities and a pool; parking is reserved for residents.', mbr1001, ctx)).toEqual([]);
+    expect(checkReasonClaims('Viewings available on request, with available amenities.', mbr1006, ctx)).toEqual([]);
+  });
+
+  it('still flags a status claimed for the unit itself', () => {
+    expect(kinds(checkReasonClaims('It is sold.', mbr1001, ctx))).toEqual(['status']);
+    expect(kinds(checkReasonClaims('MBR-1001, currently reserved.', mbr1001, ctx))).toEqual(['status']);
+  });
+
+  it('accepts the monthly rent and flags a wrong or invented one', () => {
+    expect(checkReasonClaims('Rent about AED 12,500 a month (AED 150k a year).', mbr1001, ctx)).toEqual([]);
+    expect(checkReasonClaims('Rent of AED 12.5k/month.', mbr1001, ctx)).toEqual([]);
+    expect(kinds(checkReasonClaims('Rent AED 20,000 per month.', mbr1001, ctx))).toEqual(['price']);
+    expect(kinds(checkReasonClaims('Rent about AED 9,000 a month.', mbr1022, ctx))).toEqual(['price']);
+  });
+
+  it('checks a price per sqft against the row and ignores service charges', () => {
+    expect(checkReasonClaims('At AED 1,553/sqft.', mbr1001, ctx)).toEqual([]);
+    expect(checkReasonClaims('About AED 1,550 per sq ft.', mbr1001, ctx)).toEqual([]);
+    expect(checkReasonClaims('Service charge AED 18/sqft.', mbr1001, ctx)).toEqual([]);
+    expect(kinds(checkReasonClaims('Only AED 1,200/sqft.', mbr1001, ctx))).toEqual(['price']);
+  });
+
+  it('accepts other places named as surroundings, not as where the unit is', () => {
+    expect(checkReasonClaims('A short walk from Jumeirah Lake Towers and close to Jumeirah Beach Residence.', mbr1001, ctx)).toEqual([]);
+  });
+
+  it('accepts a non-yield percentage in the same clause as the yield', () => {
+    expect(checkReasonClaims('Gross yield 7.32% and 5% under budget.', mbr1001, ctx)).toEqual([]);
   });
 });

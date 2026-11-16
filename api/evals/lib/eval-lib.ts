@@ -107,17 +107,6 @@ export function verdictOf(assertions: readonly Assertion[]): Verdict {
   return gating.length > 0 && gating.every((a) => a.pass) ? 'PASS' : 'FAIL';
 }
 
-/**
- * Every percentage written in a reason must be the listing's computed gross yield (to one decimal).
- * With unknown yield (no rent), a reason must not quote a percentage at all.
- */
-export function yieldMentionsMatch(reason: string, grossYieldPct: number | null): boolean {
-  const mentioned = [...reason.matchAll(/(\d+(?:\.\d+)?)\s*%/g)].map((m) => Number(m[1]));
-  if (mentioned.length === 0) return true;
-  if (grossYieldPct === null) return false;
-  return mentioned.every((p) => Math.abs(p - grossYieldPct) < 0.05 + 1e-9);
-}
-
 function fmtInt(n: number): string {
   return n.toLocaleString('en-US');
 }

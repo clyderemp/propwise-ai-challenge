@@ -13,9 +13,9 @@ import {
   FollowUpIntent,
   SelfVerification,
 } from '../assistant.types';
-import { checkReasonClaims } from '../domain/claim-check';
+import { checkReasonClaims, ClaimCheckContext } from '../domain/claim-check';
 import { ListingRecord } from '../domain/listing-facts';
-import { budgetBand, factualReason, validateRecommendations } from '../domain/matching';
+import { budgetBand, claimContext, factualReason, validateRecommendations } from '../domain/matching';
 import { hasSearchCriteria, sanitizeBudget, toContractRequirements } from '../domain/requirements';
 import { FaultInjector } from './fault-injector';
 import { LlmGateway, NOT_CONFIGURED_MESSAGE } from './llm.gateway';
@@ -424,21 +424,17 @@ interface VerificationInput {
   listings: ListingRecord[];
   byId: Map<string, ListingRecord>;
   seenPropertyIds: string[];
-  claimContext: { otherListings: ListingRecord[]; allowedAmountsAed: number[] };
+  claimContext: ClaimCheckContext;
 }
 
 function verificationInput(requirements: ExtractedRequirements, agencyId: string, listings: ListingRecord[], seen: ReadonlySet<string>): VerificationInput {
-  const band = budgetBand(requirements);
-  const allowedAmountsAed = [requirements.budgetMinAed, requirements.budgetMaxAed, band?.floorAed ?? null, band?.ceilingAed ?? null].filter(
-    (n): n is number => n !== null && n > 0,
-  );
   return {
     requirements,
     agencyId,
     listings,
     byId: new Map(listings.map((l) => [l.id, l])),
     seenPropertyIds: [...seen],
-    claimContext: { otherListings: listings, allowedAmountsAed },
+    claimContext: claimContext(requirements, listings),
   };
 }
 

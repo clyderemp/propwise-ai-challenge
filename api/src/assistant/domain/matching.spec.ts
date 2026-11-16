@@ -1,6 +1,6 @@
 import { CandidateRecommendation, ExtractedRequirements } from '../assistant.types';
 import { ListingRecord } from './listing-facts';
-import { budgetBand, eligibleListings, factualReason, MAX_RECOMMENDATIONS, reasonMatchesListing, reconcileSummary, validateRecommendations } from './matching';
+import { budgetBand, eligibleListings, factualReason, MAX_RECOMMENDATIONS, reconcileSummary, validateRecommendations } from './matching';
 import { emptyExtractedRequirements } from './requirements';
 import { byRef, DESERT_KEY_ID, loadSeedListings, MARINA_BAY_ID } from './seed-listings.fixture';
 
@@ -254,25 +254,6 @@ describe('validateRecommendations: integrity', () => {
   });
 });
 
-describe('reasonMatchesListing', () => {
-  const m1001 = ref('MBR-1001'); // AED 2,050,000, rent 150,000, 7.32%
-  const m1022 = ref('MBR-1022'); // AED 2,099,000, rent unknown
-
-  it('accepts figures that match the row, at the precision written', () => {
-    expect(reasonMatchesListing('MBR-1001 is a 2BR asking AED 2,050,000 with a 7.32% gross yield.', m1001)).toBe(true);
-    expect(reasonMatchesListing('About AED 2.05M, 7.3% yield, rent AED 150,000 a year.', m1001)).toBe(true);
-    expect(reasonMatchesListing('Asking 2.1M AED; rent is unknown, so no yield.', m1022)).toBe(true);
-    expect(reasonMatchesListing('A good fit in Marina Gate 1.', m1001)).toBe(true);
-  });
-
-  it('rejects a wrong price, a wrong yield, a yield for unknown rent, or another listing code', () => {
-    expect(reasonMatchesListing('Asking AED 1,900,000 with a 7.32% gross yield.', m1001)).toBe(false);
-    expect(reasonMatchesListing('AED 2,050,000 with a 8.1% gross yield.', m1001)).toBe(false);
-    expect(reasonMatchesListing('7.1% yield at AED 2.099M.', m1022)).toBe(false);
-    expect(reasonMatchesListing('Like MBR-1007, a solid choice at AED 2,050,000.', m1001)).toBe(false);
-  });
-});
-
 describe('validateRecommendations: reasons are checked against the re-read row', () => {
   it('replaces a reason whose figures do not match the listing with the factual one', () => {
     const r = run([{ propertyId: id('MBR-1022'), reason: '7.1% yield at AED 1.9M, available.' }], karim);
@@ -282,6 +263,16 @@ describe('validateRecommendations: reasons are checked against the re-read row',
   it('keeps a reason whose figures match', () => {
     const reason = 'MBR-1002 asks AED 1,890,000 with a 6.61% gross yield.';
     expect(run([{ propertyId: id('MBR-1002'), reason }], karim).kept[0].reason).toBe(reason);
+  });
+
+  it('keeps a correct reason that also quotes the budget, the monthly rent and the price per sqft', () => {
+    const reason = 'MBR-1002 asks AED 1,890,000, AED 110,000 under the AED 2M budget, with rent of about AED 10,400 a month (AED 1,340/sqft).';
+    expect(run([{ propertyId: id('MBR-1002'), reason }], karim).kept[0].reason).toBe(reason);
+  });
+
+  it('uses the same claim check as self-verification, so a wrong bedroom count is replaced too', () => {
+    const r = run([{ propertyId: id('MBR-1002'), reason: 'A 3BR asking AED 1,890,000.' }], karim);
+    expect(r.kept[0].reason).toBe(factualReason(ref('MBR-1002')));
   });
 });
 

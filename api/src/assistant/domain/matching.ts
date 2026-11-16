@@ -9,6 +9,7 @@ import {
 } from '../assistant.types';
 import { computeListingFlags, grossYieldPct, isPossibleDuplicate, isPriceSuspect, ListingRecord, toPropertySnapshot } from './listing-facts';
 import { hasSearchCriteria, sanitizeBudget } from './requirements';
+import { ClaimCheckContext, reasonMatchesListing } from './claim-check';
 
 /**
  * The rule that makes "only real, available, fitting listings" unbreakable (plan 2.7 + section 7).
@@ -91,44 +92,13 @@ export function factualReason(l: ListingRecord): string {
   return `${beds} ${l.type} in ${where} at AED ${l.priceAed.toLocaleString('en-US')}, ${yieldText}.`;
 }
 
-const AMOUNT_UNITS: Record<string, number> = { m: 1_000_000, million: 1_000_000, k: 1_000, thousand: 1_000 };
-const AED_BEFORE = /\bAED\s*(\d[\d,]*(?:\.\d+)?)\s*(million|thousand|m|k)?\b/gi;
-const AED_AFTER = /(\d[\d,]*(?:\.\d+)?)\s*(million|thousand|m|k)?\s*AED\b/gi;
-const PERCENT = /(\d+(?:\.\d+)?)\s*%/g;
-const LISTING_CODE = /\b[A-Z]{2,5}-\d{3,6}\b/gi;
-
-/** A written figure and how far off it may be at the precision it was written ("2.1M" covers 2,050,000..2,150,000). */
-function parseFigure(digits: string, unit: string | undefined): { value: number; slack: number } {
-  const plain = digits.replace(/,/g, '');
-  const decimals = plain.includes('.') ? plain.split('.')[1].length : 0;
-  const mult = unit ? AMOUNT_UNITS[unit.toLowerCase()] : 1;
-  return { value: Number(plain) * mult, slack: 0.5 * 10 ** -decimals * mult };
-}
-
-const near = (f: { value: number; slack: number }, target: number) => Math.abs(f.value - target) <= Math.max(f.slack, target * 0.005) + 1e-9;
-
-/**
- * True when every AED amount, percentage and listing code in a model-written reason matches the
- * re-read row: an amount must be the price or the annual rent, a percentage the gross yield (none
- * when rent is unknown), and a code this listing's own reference.
- */
-export function reasonMatchesListing(reason: string, l: ListingRecord): boolean {
-  for (const code of reason.match(LISTING_CODE) ?? []) {
-    if (code.toUpperCase() !== l.reference.toUpperCase()) return false;
-  }
-  const targets = [l.priceAed, ...(l.annualRentAed === null ? [] : [l.annualRentAed])];
-  for (const re of [AED_BEFORE, AED_AFTER]) {
-    for (const m of reason.matchAll(re)) {
-      const figure = parseFigure(m[1], m[2]);
-      if (!targets.some((t) => near(figure, t))) return false;
-    }
-  }
-  const y = grossYieldPct(l.priceAed, l.annualRentAed);
-  for (const m of reason.matchAll(PERCENT)) {
-    const figure = parseFigure(m[1], undefined);
-    if (y === null || Math.abs(figure.value - y) > figure.slack + 1e-9) return false;
-  }
-  return true;
+/** What a reason may quote besides the listing's own figures, and the names it could confuse. */
+export function claimContext(requirements: ExtractedRequirements, agencyListings: readonly ListingRecord[]): ClaimCheckContext {
+  const band = budgetBand(requirements);
+  const allowedAmountsAed = [requirements.budgetMinAed, requirements.budgetMaxAed, band?.floorAed ?? null, band?.ceilingAed ?? null].filter(
+    (n): n is number => n !== null && n > 0,
+  );
+  return { otherListings: agencyListings, allowedAmountsAed };
 }
 
 /** Drops that do not make a summary misleading: the listing (or its twin) is still a valid option. */
@@ -233,10 +203,11 @@ export function validateRecommendations(input: ValidateRecommendationsInput): Va
 
   for (const k of kept.slice(cap)) drop(k.listing.id, k.listing, 'over_cap', `Only the best ${cap} are recommended.`);
 
+  const claims = claimContext(req, agencyListings);
   return {
     kept: kept.slice(0, cap).map(({ listing, reason }) => ({
       propertyId: listing.id,
-      reason: reason && reasonMatchesListing(reason, listing) ? reason : factualReason(listing),
+      reason: reason && reasonMatchesListing(reason, listing, claims) ? reason : factualReason(listing),
       property: toPropertySnapshot(listing, computeListingFlags(listing, agencyListings)),
     })),
     dropped,

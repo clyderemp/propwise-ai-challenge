@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { stableId } from '../../src/db/stable-id';
 import type { PropertyJson, RunJson } from './api';
-import { checkSelfVerification, recommendationsWithin, costUsd, costWithoutCacheUsd, dubaiDate, expectedNextDayAt10, firstMondayAfterAt10, verdictOf, renderReport, yieldMentionsMatch } from './eval-lib';
+import { checkSelfVerification, recommendationsWithin, costUsd, costWithoutCacheUsd, dubaiDate, expectedNextDayAt10, firstMondayAfterAt10, verdictOf, renderReport } from './eval-lib';
 
 describe('eval helpers', () => {
   it('gives the Asia/Dubai calendar date of an instant', () => {
@@ -39,13 +39,6 @@ describe('eval helpers', () => {
     expect(verdictOf([{ name: 'a', pass: true, gating: true }, { name: 'b', pass: false, gating: false }])).toBe('PASS');
     expect(verdictOf([{ name: 'a', pass: true, gating: true }, { name: 'b', pass: false, gating: true }])).toBe('FAIL');
     expect(verdictOf([])).toBe('FAIL');
-  });
-
-  it('checks that every percentage in a reason is the computed gross yield', () => {
-    expect(yieldMentionsMatch('Gross yield 7.32% on AED 2,050,000.', 7.317)).toBe(true);
-    expect(yieldMentionsMatch('Gross yield 7.5%.', 7.317)).toBe(false);
-    expect(yieldMentionsMatch('Rent unknown.', null)).toBe(true);
-    expect(yieldMentionsMatch('Yield 6%.', null)).toBe(false);
   });
 
   it('renders a markdown report with one row per case and its assertions', () => {
