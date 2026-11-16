@@ -3,6 +3,7 @@
  * under the real @ai-sdk/anthropic provider and the real two-phase loop, and replays canned responses.
  */
 import { AgentMessage, AgentRunContext } from '../assistant.types';
+import { stableId } from '../../db/stable-id';
 import { DESERT_KEY_ID, MARINA_BAY_ID } from '../domain/seed-listings.fixture';
 import { FaultInjector } from './fault-injector';
 import { AnthropicLlmGateway } from './llm.gateway';
@@ -45,7 +46,7 @@ function extraction(location: string, bedrooms: number, name: string) {
   };
 }
 
-function captureRun(input: { agencyId: string; leadName: string; body: string; location: string; bedrooms: number }) {
+function captureRun(input: { agencyId: string; leadName: string; body: string; location: string; bedrooms: number; finals?: unknown[] }) {
   const bodies: Body[] = [];
   const { _name, ...phaseA } = extraction(input.location, input.bedrooms, input.leadName);
   void _name;
@@ -62,7 +63,9 @@ function captureRun(input: { agencyId: string; leadName: string; body: string; l
       ],
       'tool_use',
     ),
-    message([{ type: 'text', text: JSON.stringify({ recommendations: [], summary: 'Nothing fits.', followUpTask: null }) }], 'end_turn'),
+    ...(input.finals ?? [{ recommendations: [], summary: 'Nothing fits.', followUpTask: null }]).map((answer) =>
+      message([{ type: 'text', text: JSON.stringify(answer) }], 'end_turn'),
+    ),
   ];
   const fetchImpl = async (_url: unknown, init?: { body?: unknown }): Promise<Response> => {
     bodies.push(JSON.parse(String(init?.body)) as Body);
@@ -177,5 +180,46 @@ describe('prompt caching: request shape sent to Anthropic', () => {
       cacheReadTokens: 3600,
       cacheWriteTokens: 2100,
     });
+  });
+});
+
+describe('prompt caching: the self-verification revision turn', () => {
+  const mbr1002 = stableId('property', 'MBR-1002');
+  const shortlist = (reason: string) => ({ recommendations: [{ propertyId: mbr1002, reason }], summary: 'One fit.', followUpTask: null });
+  const run = captureRun({
+    agencyId: MARINA_BAY_ID,
+    leadName: 'Karim',
+    body: 'Looking for a 2-bedroom apartment in Dubai Marina under 2M AED.',
+    location: 'Dubai Marina',
+    bedrooms: 2,
+    finals: [shortlist('MBR-1002 asks AED 1,890,000 with a 9.5% gross yield.'), shortlist('MBR-1002 asks AED 1,890,000 with a 6.61% gross yield.')],
+  });
+
+  beforeAll(async () => {
+    const outcome = await run.run();
+    expect(outcome.selfVerification).toMatchObject({ revised: true, rounds: 1 });
+  });
+
+  it('sends one extra request after Phase B', () => {
+    expect(run.bodies).toHaveLength(4);
+  });
+
+  it('reuses the cached prefix: same tools, same cached system prompt, and Phase B messages resent unchanged', () => {
+    const [, , lastPhaseB, revision] = run.bodies;
+    expect(JSON.stringify(revision.tools)).toBe(JSON.stringify(lastPhaseB.tools));
+    expect(revision.system).toEqual(lastPhaseB.system);
+    expect(systemBlocks(revision).at(-1)?.cache_control).toEqual({ type: 'ephemeral' });
+    expect(revision.model).toBe(lastPhaseB.model);
+    expect(revision.output_config).toEqual(lastPhaseB.output_config);
+    expect(revision.thinking).toEqual(lastPhaseB.thinking);
+    expect(revision.messages.slice(0, lastPhaseB.messages.length)).toEqual(lastPhaseB.messages);
+  });
+
+  it('offers no tool execution: tool_choice none (allowed), never a forced choice, no sampling parameters', () => {
+    const revision = run.bodies[3];
+    expect(revision.tool_choice).toEqual({ type: 'none' });
+    expect(revision).not.toHaveProperty('temperature');
+    expect(revision).not.toHaveProperty('top_p');
+    expect(revision).not.toHaveProperty('top_k');
   });
 });

@@ -6,6 +6,7 @@ import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { App } from 'supertest/types';
 import { stableId } from '../src/db/stable-id';
+import { AgentPort, ASSISTANT_AGENT } from '../src/assistant/assistant.types';
 import { Agent } from '../src/entities';
 import { bearer, bootApp, login, OMAR, SARA } from './helpers';
 
@@ -325,6 +326,22 @@ describe('AI assistant API (scripted agent)', () => {
       expect(failed).toMatchObject({ tool: 'search_listings' });
       expect(typeof failed.error).toBe('string');
       expect(failed).not.toHaveProperty('output');
+    });
+
+    it('tells the agent the service deadline (ASSISTANT_RUN_TIMEOUT_MS), so optional work such as the revision turn ends before it', async () => {
+      const agent = app.get<AgentPort>(ASSISTANT_AGENT);
+      const spy = jest.spyOn(agent, 'run');
+      process.env.ASSISTANT_RUN_TIMEOUT_MS = '30000';
+      try {
+        const before = Date.now();
+        await startRun(sara, KARIM);
+        const ctx = spy.mock.calls.at(-1)![0];
+        expect(ctx.deadlineAt).toBeGreaterThanOrEqual(before + 30_000);
+        expect(ctx.deadlineAt).toBeLessThanOrEqual(Date.now() + 30_000);
+      } finally {
+        delete process.env.ASSISTANT_RUN_TIMEOUT_MS;
+        spy.mockRestore();
+      }
     });
 
     it('fails a run that runs past the deadline', async () => {

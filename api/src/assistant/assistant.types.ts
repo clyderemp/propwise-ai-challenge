@@ -320,6 +320,8 @@ export interface AgentRunContext {
   thread: AgentMessage[];
   trace: TraceSink;
   signal?: AbortSignal;
+  /** When the service fails the run (epoch ms, from ASSISTANT_RUN_TIMEOUT_MS). Optional work, such as the revision turn, must end before it. */
+  deadlineAt?: number;
 }
 
 export interface CandidateRecommendation {

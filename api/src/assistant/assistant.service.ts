@@ -220,6 +220,7 @@ export class AssistantService implements OnApplicationBootstrap, BeforeApplicati
       controller.signal.addEventListener('abort', () => reject(controller.signal.reason), { once: true });
     });
     aborted.catch(() => undefined);
+    const deadlineAt = Date.now() + timeoutMs;
     const timer = setTimeout(() => controller.abort(new AgentRunError('timeout', 'Deadline reached.', [...recorded])), timeoutMs);
 
     let traceWrites: Promise<void> = Promise.resolve();
@@ -253,6 +254,7 @@ export class AssistantService implements OnApplicationBootstrap, BeforeApplicati
             },
           },
           signal: controller.signal,
+          deadlineAt,
         }),
         aborted,
       ]);

@@ -51,8 +51,10 @@ const EXTRACTION_EFFORT = 'low';
 const ANALYSIS_EFFORT = 'medium';
 const EXTRACTION_MAX_TOKENS = 8_000;
 const ANALYSIS_MAX_TOKENS = 16_000;
-/** The revision turn is skipped (and reasons fall back) when less than this is left of the run deadline. */
-const MIN_REVISION_MS = 5_000;
+/** The revision turn is skipped (and reasons fall back) when less than this is left before the deadline. */
+const MIN_REVISION_MS = 8_000;
+/** Kept free after the revision turn for the service to validate and store the run before its deadline. */
+const REVISION_MARGIN_MS = 3_000;
 
 export interface RunAgentDeps {
   data: AgentDataAccess;
@@ -312,7 +314,9 @@ export async function runAssistantAgent(ctx: AgentRunContext, deps: RunAgentDeps
     let rounds = 0;
     let revisionError: string | undefined;
     if (issuesFound.length > 0) {
-      const leftMs = limits.runTimeoutMs - (performance.now() - state.started);
+      // The nearer of the agent's own limit and the service deadline (ASSISTANT_RUN_TIMEOUT_MS).
+      const agentLeftMs = limits.runTimeoutMs - (performance.now() - state.started);
+      const leftMs = ctx.deadlineAt === undefined ? agentLeftMs : Math.min(agentLeftMs, ctx.deadlineAt - Date.now());
       if (leftMs < MIN_REVISION_MS || state.signal.aborted) {
         revisionError = 'Not enough time left before the run deadline for a revision turn.';
       } else {
@@ -325,19 +329,24 @@ export async function runAssistantAgent(ctx: AgentRunContext, deps: RunAgentDeps
         try {
           const result = await generateText({
             ...common,
-            // Exactly one extra request: no retries, one step, inside the run deadline.
+            // Exactly one extra request: no retries, one step, ending before the deadline with room to store the run.
             maxRetries: 0,
-            abortSignal: AbortSignal.any([state.signal, AbortSignal.timeout(Math.min(limits.stepTimeoutMs, leftMs - 1_000))]),
+            abortSignal: AbortSignal.any([state.signal, AbortSignal.timeout(Math.min(limits.stepTimeoutMs, leftMs - REVISION_MARGIN_MS))]),
             model,
-            system: ANALYSIS_SYSTEM,
+            // Same cached system prompt, same tool definitions, same effort as Phase B, and Phase B's messages
+            // resent unchanged: the tools + system prefix is read from the cache (tool_choice only invalidates
+            // the messages tier). tool_choice 'none' and tools without executors: the revision can only answer.
+            system: cachedSystem(ANALYSIS_SYSTEM),
             messages,
-            tools,
+            tools: answerOnly(tools),
+            toolChoice: 'none',
             stopWhen: stepCountIs(1),
-            onStepFinish: (step) => recordRejectedCalls(step, recorder),
             output: Output.object({ schema: analysisSchema }),
             maxOutputTokens: ANALYSIS_MAX_TOKENS,
             providerOptions: { anthropic: { effort: ANALYSIS_EFFORT } },
+            experimental_telemetry: telemetryFor('assistant.revision', ctx.runId, deps.gateway.modelId),
           });
+          steps += result.steps.length;
           addUsage(usage, result.totalUsage);
           if (result.finishReason !== 'stop') {
             revisionError = `The revision turn ended with ${result.finishReason} instead of an answer.`;
@@ -349,8 +358,6 @@ export async function runAssistantAgent(ctx: AgentRunContext, deps: RunAgentDeps
         } catch (error) {
           revisionError = `The revision turn failed: ${error instanceof Error ? error.message : String(error)}`;
         }
-        // A tool failure ends the run as failed, in the revision turn as anywhere else.
-        if (recorder.failure) throw state.toRunError(null);
       }
     }
     const fallbackReasons: SelfVerification['fallbackReasons'] = [];
@@ -404,6 +411,11 @@ function followUpFor(
   }
   if (leadAsked) return { title: clamp(`Follow up with ${leadName}`, MAX_TASK_TITLE), notes: null, intent };
   return null;
+}
+
+/** The same tool definitions with no executors: offered for an identical (cached) prefix, never run. */
+function answerOnly(tools: ToolSet): ToolSet {
+  return Object.fromEntries(Object.entries(tools).map(([name, t]) => [name, { ...t, execute: undefined }]));
 }
 
 function toCandidates(analysis: AnalysisOutput, searchSkipped: boolean): CandidateRecommendation[] {

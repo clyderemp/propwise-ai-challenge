@@ -71,7 +71,7 @@ const KARIM_SEARCH = {
   reference: null,
 };
 
-function setup(steps: ScriptedStep[], opts: { faults?: FaultInjector; limits?: RunAgentDeps['limits']; signal?: AbortSignal } = {}) {
+function setup(steps: ScriptedStep[], opts: { faults?: FaultInjector; limits?: RunAgentDeps['limits']; signal?: AbortSignal; deadlineAt?: number } = {}) {
   const data = new FakeDataAccess();
   const model = new ScriptedModel(steps);
   const sunk: TraceEntry[] = [];
@@ -85,6 +85,7 @@ function setup(steps: ScriptedStep[], opts: { faults?: FaultInjector; limits?: R
     thread: [],
     trace: { record: (e) => void sunk.push(e) },
     signal: opts.signal,
+    ...(opts.deadlineAt !== undefined ? { deadlineAt: opts.deadlineAt } : {}),
   };
   const deps: RunAgentDeps = { data, gateway: scriptedGateway(model), faults: opts.faults ?? new FaultInjector({}), limits: opts.limits };
   return { data, model, sunk, ctx, deps, run: () => runAssistantAgent(ctx, deps) };
@@ -433,10 +434,12 @@ describe('runAssistantAgent self-verification', () => {
     expect(prompt).toContain('8.1% gross yield');
     expect(prompt).toContain('<claim_issues>');
     expect(prompt).toContain('7.32%');
-    // Read-only tools only, and no forced tool choice or sampling parameters.
-    expect(t.model.toolNamesOnCall(3).sort()).toEqual(['get_lead_tasks', 'get_listing_details', 'search_listings']);
-    expect(revision.toolChoice?.type ?? 'auto').toBe('auto');
+    // The same tool definitions as Phase B (so the cached tools + system prefix is reused), but tool choice
+    // 'none': the revision can only answer. No sampling parameters.
+    expect(t.model.toolNamesOnCall(3)).toEqual(t.model.toolNamesOnCall(2));
+    expect(revision.toolChoice).toEqual({ type: 'none' });
     expect(revision.temperature).toBeUndefined();
+    expect(outcome.steps).toBe(4);
 
     expect(outcome.candidates.map((c) => c.reason)).toEqual([RIGHT_1001, RIGHT_1002]);
     expect(outcome.selfVerification).toEqual({
@@ -480,7 +483,40 @@ describe('runAssistantAgent self-verification', () => {
     expect(t.model.calls).toHaveLength(4);
     expect(outcome.candidates[0].reason).toBe(factualReason(mbr1001));
     expect(outcome.selfVerification).toMatchObject({ revised: false, rounds: 1 });
+    // A tool call in the revision is never executed: the trace (and the live sink) stay Phase B's calls.
+    expect(outcome.trace.map((e) => e.tool)).toEqual(['search_listings']);
+    expect(t.sunk.map((e) => e.tool)).toEqual(['search_listings']);
   });
+
+  it('skips the revision when the service deadline is too close, and ships factual reasons instead of failing', async () => {
+    const t = setup([{ json: karimExtraction() }, search, answer(WRONG_1001), answer(RIGHT_1001)], { deadlineAt: Date.now() + 3_000 });
+    const outcome = await t.run();
+
+    expect(t.model.calls).toHaveLength(3);
+    expect(outcome.candidates[0].reason).toBe(factualReason(mbr1001));
+    expect(outcome.selfVerification).toMatchObject({ revised: false, rounds: 0, revisionError: expect.stringContaining('deadline') });
+  });
+
+  // A model call that never answers: it ends only when its abort signal fires.
+  const hangUntilAborted = (options: { abortSignal?: AbortSignal }) =>
+    new Promise<never>((_, reject) => {
+      const timer = setTimeout(() => reject(new Error('never aborted')), 60_000);
+      options.abortSignal?.addEventListener('abort', () => {
+        clearTimeout(timer);
+        reject(options.abortSignal?.reason instanceof Error ? options.abortSignal.reason : new Error('aborted'));
+      });
+    });
+
+  it('bounds the revision call by the service deadline, not only the agent limit', async () => {
+    // The agent's own limit is 100 s; the service deadline leaves ~10 s, so the revision must give up well before it.
+    const t = setup([{ json: karimExtraction() }, search, answer(WRONG_1001), hangUntilAborted], { deadlineAt: Date.now() + 10_000 });
+    const started = Date.now();
+    const outcome = await t.run();
+
+    expect(Date.now() - started).toBeLessThan(10_000);
+    expect(outcome.candidates[0].reason).toBe(factualReason(mbr1001));
+    expect(outcome.selfVerification).toMatchObject({ revised: false, rounds: 1, revisionError: expect.any(String) });
+  }, 15_000);
 
   it('also revises when a candidate fails the recommendation validation', async () => {
     const sold = byRef(data.listings, 'MBR-1005');
