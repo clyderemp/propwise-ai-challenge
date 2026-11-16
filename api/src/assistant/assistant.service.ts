@@ -38,7 +38,7 @@ import {
 } from './assistant.types';
 import { resolveDueAt } from './domain/follow-up-date';
 import { computeListingFlags, ListingRecord, toListingRecord } from './domain/listing-facts';
-import { validateRecommendations } from './domain/matching';
+import { reconcileSummary, validateRecommendations } from './domain/matching';
 import { emptyRequirements } from './domain/requirements';
 
 /** Newest messages before the analysed one that the agent sees as context. */
@@ -460,7 +460,7 @@ export class AssistantService implements OnApplicationBootstrap, BeforeApplicati
     run.model = outcome.model;
     run.requirements = outcome.requirements;
     run.recommendations = validation.kept;
-    run.summary = withDroppedNote(outcome.summary, validation.dropped);
+    run.summary = withDroppedNote(reconcileSummary(outcome.summary, validation.kept, validation.dropped), validation.dropped);
     run.trace = longest(outcome.trace, recorded);
     run.diagnostics = {
       droppedRecommendations: validation.dropped,

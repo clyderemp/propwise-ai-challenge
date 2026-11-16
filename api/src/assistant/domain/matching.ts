@@ -91,6 +91,68 @@ export function factualReason(l: ListingRecord): string {
   return `${beds} ${l.type} in ${where} at AED ${l.priceAed.toLocaleString('en-US')}, ${yieldText}.`;
 }
 
+const AMOUNT_UNITS: Record<string, number> = { m: 1_000_000, million: 1_000_000, k: 1_000, thousand: 1_000 };
+const AED_BEFORE = /\bAED\s*(\d[\d,]*(?:\.\d+)?)\s*(million|thousand|m|k)?\b/gi;
+const AED_AFTER = /(\d[\d,]*(?:\.\d+)?)\s*(million|thousand|m|k)?\s*AED\b/gi;
+const PERCENT = /(\d+(?:\.\d+)?)\s*%/g;
+const LISTING_CODE = /\b[A-Z]{2,5}-\d{3,6}\b/gi;
+
+/** A written figure and how far off it may be at the precision it was written ("2.1M" covers 2,050,000..2,150,000). */
+function parseFigure(digits: string, unit: string | undefined): { value: number; slack: number } {
+  const plain = digits.replace(/,/g, '');
+  const decimals = plain.includes('.') ? plain.split('.')[1].length : 0;
+  const mult = unit ? AMOUNT_UNITS[unit.toLowerCase()] : 1;
+  return { value: Number(plain) * mult, slack: 0.5 * 10 ** -decimals * mult };
+}
+
+const near = (f: { value: number; slack: number }, target: number) => Math.abs(f.value - target) <= Math.max(f.slack, target * 0.005) + 1e-9;
+
+/**
+ * True when every AED amount, percentage and listing code in a model-written reason matches the
+ * re-read row: an amount must be the price or the annual rent, a percentage the gross yield (none
+ * when rent is unknown), and a code this listing's own reference.
+ */
+export function reasonMatchesListing(reason: string, l: ListingRecord): boolean {
+  for (const code of reason.match(LISTING_CODE) ?? []) {
+    if (code.toUpperCase() !== l.reference.toUpperCase()) return false;
+  }
+  const targets = [l.priceAed, ...(l.annualRentAed === null ? [] : [l.annualRentAed])];
+  for (const re of [AED_BEFORE, AED_AFTER]) {
+    for (const m of reason.matchAll(re)) {
+      const figure = parseFigure(m[1], m[2]);
+      if (!targets.some((t) => near(figure, t))) return false;
+    }
+  }
+  const y = grossYieldPct(l.priceAed, l.annualRentAed);
+  for (const m of reason.matchAll(PERCENT)) {
+    const figure = parseFigure(m[1], undefined);
+    if (y === null || Math.abs(figure.value - y) > figure.slack + 1e-9) return false;
+  }
+  return true;
+}
+
+/** Drops that do not make a summary misleading: the listing (or its twin) is still a valid option. */
+const BENIGN_DROPS = new Set<DropReason>(['duplicate', 'over_cap', 'repeated']);
+
+/**
+ * When the model's summary names a listing the server dropped (sold, over budget, invented...), the
+ * sentences naming it are removed and the options are restated from the re-read rows.
+ */
+export function reconcileSummary(summary: string, kept: readonly ValidatedRecommendation[], dropped: readonly DroppedRecommendation[]): string {
+  const removed = dropped
+    .filter((d) => d.reference !== null && !BENIGN_DROPS.has(d.reason))
+    .map((d) => new RegExp(`\\b${d.reference!.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i'));
+  const sentences = summary.trim().split(/(?<=[.!?])\s+/);
+  const keptSentences = sentences.filter((s) => !removed.some((re) => re.test(s)));
+  if (keptSentences.length === sentences.length) return summary;
+  const options = kept.map((k) => {
+    const y = k.property.grossYieldPct;
+    return `${k.property.reference} (AED ${k.property.priceAed.toLocaleString('en-US')}, ${y === null ? 'rent unknown' : `gross yield ${y.toFixed(2)}%`})`;
+  });
+  const restated = options.length > 0 ? `Recommended after server checks: ${options.join(', ')}.` : 'No suggested listing passed the server checks.';
+  return [...keptSentences.filter((s) => s.trim()), restated].join(' ');
+}
+
 export function validateRecommendations(input: ValidateRecommendationsInput): ValidationResult {
   const { requirements: req, agencyId } = input;
   const band = budgetBand(req);
@@ -174,7 +236,7 @@ export function validateRecommendations(input: ValidateRecommendationsInput): Va
   return {
     kept: kept.slice(0, cap).map(({ listing, reason }) => ({
       propertyId: listing.id,
-      reason: reason || factualReason(listing),
+      reason: reason && reasonMatchesListing(reason, listing) ? reason : factualReason(listing),
       property: toPropertySnapshot(listing, computeListingFlags(listing, agencyListings)),
     })),
     dropped,

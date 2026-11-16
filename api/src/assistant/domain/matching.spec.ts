@@ -1,6 +1,6 @@
 import { CandidateRecommendation, ExtractedRequirements } from '../assistant.types';
 import { ListingRecord } from './listing-facts';
-import { budgetBand, eligibleListings, MAX_RECOMMENDATIONS, validateRecommendations } from './matching';
+import { budgetBand, eligibleListings, factualReason, MAX_RECOMMENDATIONS, reasonMatchesListing, reconcileSummary, validateRecommendations } from './matching';
 import { emptyExtractedRequirements } from './requirements';
 import { byRef, DESERT_KEY_ID, loadSeedListings, MARINA_BAY_ID } from './seed-listings.fixture';
 
@@ -251,5 +251,63 @@ describe('validateRecommendations: integrity', () => {
       expect(l.agencyId).toBe(MARINA_BAY_ID);
       expect(l.status).toBe('available');
     }
+  });
+});
+
+describe('reasonMatchesListing', () => {
+  const m1001 = ref('MBR-1001'); // AED 2,050,000, rent 150,000, 7.32%
+  const m1022 = ref('MBR-1022'); // AED 2,099,000, rent unknown
+
+  it('accepts figures that match the row, at the precision written', () => {
+    expect(reasonMatchesListing('MBR-1001 is a 2BR asking AED 2,050,000 with a 7.32% gross yield.', m1001)).toBe(true);
+    expect(reasonMatchesListing('About AED 2.05M, 7.3% yield, rent AED 150,000 a year.', m1001)).toBe(true);
+    expect(reasonMatchesListing('Asking 2.1M AED; rent is unknown, so no yield.', m1022)).toBe(true);
+    expect(reasonMatchesListing('A good fit in Marina Gate 1.', m1001)).toBe(true);
+  });
+
+  it('rejects a wrong price, a wrong yield, a yield for unknown rent, or another listing code', () => {
+    expect(reasonMatchesListing('Asking AED 1,900,000 with a 7.32% gross yield.', m1001)).toBe(false);
+    expect(reasonMatchesListing('AED 2,050,000 with a 8.1% gross yield.', m1001)).toBe(false);
+    expect(reasonMatchesListing('7.1% yield at AED 2.099M.', m1022)).toBe(false);
+    expect(reasonMatchesListing('Like MBR-1007, a solid choice at AED 2,050,000.', m1001)).toBe(false);
+  });
+});
+
+describe('validateRecommendations: reasons are checked against the re-read row', () => {
+  it('replaces a reason whose figures do not match the listing with the factual one', () => {
+    const r = run([{ propertyId: id('MBR-1022'), reason: '7.1% yield at AED 1.9M, available.' }], karim);
+    expect(r.kept[0].reason).toBe(factualReason(ref('MBR-1022')));
+  });
+
+  it('keeps a reason whose figures match', () => {
+    const reason = 'MBR-1002 asks AED 1,890,000 with a 6.61% gross yield.';
+    expect(run([{ propertyId: id('MBR-1002'), reason }], karim).kept[0].reason).toBe(reason);
+  });
+});
+
+describe('reconcileSummary', () => {
+  const kept = run(cands('MBR-1001', 'MBR-1002'), karim).kept;
+
+  it('leaves the summary alone when nothing proposed was dropped for a fit or data reason', () => {
+    expect(reconcileSummary('Karim wants a 2BR. MBR-1024 duplicates MBR-1001.', kept, [{ propertyId: 'x', reference: 'MBR-1024', reason: 'duplicate', detail: '' }])).toBe(
+      'Karim wants a 2BR. MBR-1024 duplicates MBR-1001.',
+    );
+  });
+
+  it('removes sentences that name a dropped listing and lists the kept ones from the data', () => {
+    const out = reconcileSummary(
+      'Karim wants a 2BR in Dubai Marina around AED 2M. MBR-1007 is the best value at AED 1.65M. MBR-1001 has a 7.32% yield.',
+      kept,
+      [{ propertyId: id('MBR-1007'), reference: 'MBR-1007', reason: 'under_budget', detail: '' }],
+    );
+    expect(out).not.toContain('best value');
+    expect(out).toContain('Karim wants a 2BR in Dubai Marina around AED 2M.');
+    expect(out).toContain('MBR-1001 has a 7.32% yield.');
+    expect(out).toContain('Recommended after server checks: MBR-1001 (AED 2,050,000, gross yield 7.32%), MBR-1002 (AED 1,890,000, gross yield 6.61%).');
+  });
+
+  it('says plainly when no listing survived', () => {
+    const out = reconcileSummary('MBR-1007 is perfect.', [], [{ propertyId: id('MBR-1007'), reference: 'MBR-1007', reason: 'under_budget', detail: '' }]);
+    expect(out).toBe('No suggested listing passed the server checks.');
   });
 });
