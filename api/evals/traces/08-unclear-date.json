@@ -26,7 +26,7 @@
       "name": "needsClarification explains why",
       "pass": true,
       "gating": true,
-      "detail": "\"The lead gave no specific day or time, only that the agent should reach out whenever convenient.\""
+      "detail": "\"The lead gave no specific day or time, only 'sometime when you get a chance'.\""
     },
     {
       "name": "Unclear timing: recommends nothing",
@@ -39,11 +39,11 @@
     {
       "label": "Unclear timing",
       "status": 201,
-      "latencyMs": 6079,
+      "latencyMs": 6280,
       "run": {
-        "id": "4e6b05ee-c405-4a85-9a64-5a5ac9111428",
-        "leadId": "c1f89017-742b-499f-b575-a018799d6f9f",
-        "messageId": "f448df92-b6ac-45f5-9786-1eeee3e4c326",
+        "id": "b0559ebf-48f6-48e6-b5f4-628c788663f8",
+        "leadId": "51ab0d0b-69d5-43ad-890b-64a3d100bcc9",
+        "messageId": "e4f10c09-212f-46a7-96fb-da51f8a832a4",
         "status": "completed",
         "requirements": {
           "locations": [],
@@ -63,18 +63,18 @@
           "prioritiseYield": false
         },
         "recommendations": [],
-        "summary": "The lead gave no property criteria. There is no area, property type, bedroom count, budget or listing code, and the intent and timing are unclear. I did not search listings and have nothing to recommend. The lead has no open tasks. The next step is to contact the lead and ask what they want.",
+        "summary": "The lead gave no property criteria: no area, property type, bedrooms, budget or intent, and no listing code. Timing is also unclear. I ran no listing search and recommend nothing. The lead has no open follow-up tasks. The next step is to contact them and find out what they want.",
         "proposedActions": [
           {
-            "id": "9f4facca-d56c-4d5e-932f-8a939b6adfe1",
+            "id": "1df9c13c-9813-46fa-8d99-fff03655f7a3",
             "type": "create_follow_up_task",
             "status": "pending_approval",
             "task": {
               "title": "Contact lead to clarify property requirements and timing",
-              "notes": "The message had no criteria. Ask whether they want to buy or rent, which areas, property type, bedrooms, budget, and their timeline. Also ask whether yield matters to them. Once they answer, run a listing search and send matching options.",
+              "notes": "The lead's message had no criteria. Ask whether they want to buy or rent (our listings are for sale), and which areas, property type and bedrooms they want. Ask for their budget and timeline, and whether yield matters to them. Then shortlist listings.",
               "dueAt": null
             },
-            "needsClarification": "The lead gave no specific day or time, only that the agent should reach out whenever convenient.",
+            "needsClarification": "The lead gave no specific day or time, only 'sometime when you get a chance'.",
             "taskId": null
           }
         ],
@@ -86,19 +86,19 @@
               "total": 0,
               "items": []
             },
-            "durationMs": 21
+            "durationMs": 37
           }
         ],
-        "createdAt": "2026-11-16T10:52:16.859Z",
+        "createdAt": "2026-11-16T11:52:45.809Z",
         "model": "claude-sonnet-5-5",
         "diagnostics": {
           "droppedRecommendations": [],
           "budgetBand": null,
           "searchSkipped": true,
           "usage": {
-            "inputTokens": 7712,
-            "outputTokens": 472,
-            "totalTokens": 8184
+            "inputTokens": 7706,
+            "outputTokens": 477,
+            "totalTokens": 8183
           }
         },
         "dataWarnings": []

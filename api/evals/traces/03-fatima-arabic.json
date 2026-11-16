@@ -87,9 +87,9 @@
     {
       "label": "Fatima",
       "status": 201,
-      "latencyMs": 10550,
+      "latencyMs": 10875,
       "run": {
-        "id": "123544c3-69c0-4820-9b18-a86282dd2f0e",
+        "id": "fd3e5973-60e4-4ddf-b565-1e0b4ecea346",
         "leadId": "f7e72c18-9aeb-5f8a-a5a8-c7a3a7508ed1",
         "messageId": "95ec5924-b0f1-56c1-96da-5424b5b0a2f0",
         "status": "completed",
@@ -133,7 +133,7 @@
           },
           {
             "propertyId": "473a131f-4f8c-52d5-88d5-88ac173f49ea",
-            "reason": "MBR-1001 is a 2-bedroom apartment in Marina Gate 1, Dubai Marina, asking AED 2,050,000, with a gross yield of 7.32%. It is available.",
+            "reason": "MBR-1001 is a 2-bedroom Marina-view apartment in Marina Gate 1 asking AED 2,050,000, with a gross yield of 7.32%. It is available.",
             "property": {
               "reference": "MBR-1001",
               "title": "Marina-view 2BR in Marina Gate 1",
@@ -153,7 +153,7 @@
           },
           {
             "propertyId": "bcb641ba-26bb-5bbc-8672-ba7a3c2edbff",
-            "reason": "MBR-1022 is a 2-bedroom apartment in Marina Quays West, Dubai Marina, asking AED 2,099,000. It is available, but the rent is unknown so there is no yield figure.",
+            "reason": "MBR-1022 is a 2-bedroom apartment in Marina Quays West asking AED 2,099,000. It is available, but the rent is unknown so there is no yield figure.",
             "property": {
               "reference": "MBR-1022",
               "title": "2BR in Marina Quays West",
@@ -172,15 +172,15 @@
             }
           }
         ],
-        "summary": "Fatima wants to buy a 2-bedroom apartment in Dubai Marina with a budget of about AED 2M, which is approximate. Three available listings fit: MBR-1002 at AED 1.89M is within budget, while MBR-1001 at AED 2.05M and MBR-1022 at AED 2.099M are slightly over. MBR-1024 appears to be a duplicate of MBR-1001, so I included only one of them. MBR-1022 has no rent data.",
+        "summary": "Fatima wants to buy a 2-bedroom apartment in Dubai Marina. Her budget is about AED 2M and approximate, so I searched AED 1.8M to 2.1M. Three listings fit: MBR-1002, MBR-1001 and MBR-1022. MBR-1001 and MBR-1024 look like duplicates of the same Marina Gate 1 unit, so I listed only MBR-1001. MBR-1022 has no rent data. MBR-1001 and MBR-1022 are above AED 2M, so check she is comfortable with that.",
         "proposedActions": [
           {
-            "id": "057385ba-7bf1-4079-a287-b359d5074ec1",
+            "id": "e330b84c-6ecb-4f03-ac78-9ad086c38635",
             "type": "create_follow_up_task",
             "status": "pending_approval",
             "task": {
               "title": "Call Fatima about Dubai Marina 2BR options",
-              "notes": "Share MBR-1002 (AED 1.89M, 6.61% yield), MBR-1001 (AED 2.05M, 7.32% yield) and MBR-1022 (AED 2.099M, rent unknown). Confirm whether she can stretch above AED 2M. MBR-1024 is a possible duplicate of MBR-1001, so check that listing before sharing it. Ask for her timeline and whether she is buying to live in or to invest.",
+              "notes": "Share MBR-1002 (AED 1.89M, 6.61% yield), MBR-1001 (AED 2.05M, 7.32% yield) and MBR-1022 (AED 2.099M, rent unknown). Confirm her budget flexibility above AED 2M. Verify whether MBR-1001 and MBR-1024 are the same unit, and get the rent figure for MBR-1022. Offer viewings.",
               "dueAt": "2026-11-17T10:00:00+04:00"
             },
             "needsClarification": null,
@@ -188,15 +188,6 @@
           }
         ],
         "trace": [
-          {
-            "tool": "get_lead_tasks",
-            "input": {},
-            "output": {
-              "total": 0,
-              "items": []
-            },
-            "durationMs": 22
-          },
           {
             "tool": "search_listings",
             "input": {
@@ -281,10 +272,19 @@
                 }
               ]
             },
-            "durationMs": 36
+            "durationMs": 31
+          },
+          {
+            "tool": "get_lead_tasks",
+            "input": {},
+            "output": {
+              "total": 0,
+              "items": []
+            },
+            "durationMs": 30
           }
         ],
-        "createdAt": "2026-11-16T10:51:56.877Z",
+        "createdAt": "2026-11-16T11:52:23.467Z",
         "model": "claude-sonnet-5-5",
         "diagnostics": {
           "droppedRecommendations": [],
@@ -296,8 +296,8 @@
           "searchSkipped": false,
           "usage": {
             "inputTokens": 10657,
-            "outputTokens": 1139,
-            "totalTokens": 11796
+            "outputTokens": 1148,
+            "totalTokens": 11805
           }
         },
         "dataWarnings": [

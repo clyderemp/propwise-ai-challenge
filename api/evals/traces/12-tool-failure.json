@@ -50,9 +50,9 @@
     {
       "label": "Karim with search_listings failing",
       "status": 201,
-      "latencyMs": 5570,
+      "latencyMs": 5331,
       "run": {
-        "id": "702512f0-a64b-46bc-a570-8c49610eb0b8",
+        "id": "4c1a84fa-eea3-4403-beec-1450b0c3d270",
         "leadId": "310661c8-6de3-5b3f-80c8-ca4ef71e55b1",
         "messageId": "536370e0-95b4-539e-943b-4a67509c0bea",
         "status": "failed",
@@ -85,7 +85,7 @@
               "reference": null
             },
             "error": "Injected fault: search_listings is unavailable.",
-            "durationMs": 1
+            "durationMs": 3
           },
           {
             "tool": "get_lead_tasks",
@@ -94,16 +94,16 @@
               "total": 1,
               "items": [
                 {
-                  "title": "Call Karim about Dubai Marina 2BR yield options",
+                  "title": "Call Karim about Dubai Marina 2BR options",
                   "status": "open",
                   "dueAt": "2026-11-17T06:00:00.000Z"
                 }
               ]
             },
-            "durationMs": 135
+            "durationMs": 161
           }
         ],
-        "createdAt": "2026-11-16T10:52:55.706Z",
+        "createdAt": "2026-11-16T11:53:21.613Z",
         "model": "claude-sonnet-5-5",
         "diagnostics": {
           "droppedRecommendations": [],

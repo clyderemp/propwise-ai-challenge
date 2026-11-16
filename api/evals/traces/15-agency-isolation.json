@@ -63,9 +63,9 @@
     {
       "label": "Nadia as Omar",
       "status": 201,
-      "latencyMs": 8618,
+      "latencyMs": 7685,
       "run": {
-        "id": "54ef627e-8c3a-4913-b56e-aac62c08f7f2",
+        "id": "1acdb98e-9326-4e1d-bfac-25b8c5204da8",
         "leadId": "78f4733d-3f7d-523d-9e80-afde5280f5db",
         "messageId": "4d644d3e-77ce-501f-8367-ceb6acdfee87",
         "status": "completed",
@@ -91,7 +91,7 @@
         "recommendations": [
           {
             "propertyId": "c59d90ac-dbc5-5216-a9df-7799babf91b3",
-            "reason": "DKP-2001 is an available 2-bedroom apartment in Dubai Marina (Marina Quays East), asking AED 1,980,000, which is under the AED 2,000,000 budget. Its gross yield is 7.58% on an estimated annual rent of AED 150,000.",
+            "reason": "2BR apartment in Marina Quays East, Dubai Marina at AED 1,980,000, gross yield 7.58%.",
             "property": {
               "reference": "DKP-2001",
               "title": "2BR in Marina Quays East",
@@ -108,15 +108,15 @@
             }
           }
         ],
-        "summary": "Nadia wants a 2-bedroom in Dubai Marina with a maximum budget of AED 2,000,000. Her intent (buy or rent) and property type aren't stated. One available listing fits, DKP-2001, and it has no data flags. These listings are for sale only, so confirm she wants to buy. She has no open follow-up tasks.",
+        "summary": "Nadia wants a 2-bedroom in Dubai Marina with a budget up to AED 2,000,000. Her intent (buy or rent) is not clear. One available listing fits: DKP-2001, with no data flags. These listings are for sale only, so check whether she wants to buy. Next step is to contact her.",
         "proposedActions": [
           {
-            "id": "d8a7d638-d77b-4ba0-b28b-ba0e0e6f827b",
+            "id": "04f545d7-11cd-49dc-ab84-4f54d306e6f1",
             "type": "create_follow_up_task",
             "status": "pending_approval",
             "task": {
-              "title": "Call Nadia Rahman about Dubai Marina 2BR option",
-              "notes": "Confirm she wants to buy rather than rent, since these listings are for sale only. Present DKP-2001 (2BR, Marina Quays East, AED 1,980,000, 7.58% gross yield). Ask about her preferences and whether she would consider other areas or a slightly higher budget to widen the options.",
+              "title": "Contact Nadia Rahman about Dubai Marina 2BR options",
+              "notes": "Confirm she wants to buy, not rent, since our listings are for sale only. Present DKP-2001 (Marina Quays East, AED 1,980,000, 7.58% gross yield). Ask about flexibility on budget, area and property type, and about her preferences, as only one listing matched.",
               "dueAt": "2026-11-17T10:00:00+04:00"
             },
             "needsClarification": null,
@@ -131,7 +131,7 @@
               "total": 0,
               "items": []
             },
-            "durationMs": 18
+            "durationMs": 19
           },
           {
             "tool": "search_listings",
@@ -166,10 +166,10 @@
                 }
               ]
             },
-            "durationMs": 21
+            "durationMs": 28
           }
         ],
-        "createdAt": "2026-11-16T10:52:44.258Z",
+        "createdAt": "2026-11-16T11:53:11.520Z",
         "model": "claude-sonnet-5-5",
         "diagnostics": {
           "droppedRecommendations": [],
@@ -181,8 +181,8 @@
           "searchSkipped": false,
           "usage": {
             "inputTokens": 10059,
-            "outputTokens": 872,
-            "totalTokens": 10931
+            "outputTokens": 849,
+            "totalTokens": 10908
           }
         },
         "dataWarnings": []

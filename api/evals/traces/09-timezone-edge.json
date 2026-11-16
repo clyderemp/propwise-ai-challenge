@@ -27,11 +27,11 @@
     {
       "label": "Timezone edge",
       "status": 201,
-      "latencyMs": 6465,
+      "latencyMs": 6184,
       "run": {
-        "id": "438945ed-fa36-47dc-a3fc-f89c311c556b",
-        "leadId": "cf5c1b89-e3d6-4653-8b7a-d009887d7a12",
-        "messageId": "778953d3-69b7-42cb-a18e-acc0a3a23d06",
+        "id": "2fc1db03-251a-446e-b6a1-8d666c33a7ef",
+        "leadId": "e174d483-ac41-43c4-89b1-2c5c651a7a39",
+        "messageId": "bbfe1efb-bc5a-41a4-a5af-72a443ad657f",
         "status": "completed",
         "requirements": {
           "locations": [],
@@ -51,15 +51,15 @@
           "prioritiseYield": false
         },
         "recommendations": [],
-        "summary": "The lead gave no usable criteria: no area, property type, bedrooms, budget or listing code. Their intent is also unknown, so I ran no listing search and recommend nothing. There are no open follow-up tasks for this lead. The next step is to contact them and find out whether they want to buy or rent, and which area, property type, bedrooms and budget they have in mind.",
+        "summary": "The lead gave no property criteria. There is no area, property type, bedroom count, budget or listing code, and the intent is unknown. I ran no listing search and recommend nothing. The lead has no open follow-up tasks. The next step is to contact the lead and ask what they are looking for.",
         "proposedActions": [
           {
-            "id": "62fa00e2-585f-4db5-8c9d-fa785407dd5f",
+            "id": "d7c56741-78f5-4d2a-a42b-e52872a25d46",
             "type": "create_follow_up_task",
             "status": "pending_approval",
             "task": {
               "title": "Contact lead to clarify property requirements",
-              "notes": "The lead's message had no criteria. Ask whether they want to buy or rent, and ask for preferred areas, property type, bedrooms, budget and whether they are investing for yield. Our listings are for sale. Then shortlist available listings that fit.",
+              "notes": "The message gave no criteria. Ask whether they want to buy or rent, which areas they prefer, the property type, bedrooms, budget, and whether rental yield matters. Then shortlist matching listings.",
               "dueAt": "2026-10-18T10:00:00+04:00"
             },
             "needsClarification": null,
@@ -77,16 +77,16 @@
             "durationMs": 12
           }
         ],
-        "createdAt": "2026-11-16T10:52:22.977Z",
+        "createdAt": "2026-11-16T11:52:49.775Z",
         "model": "claude-sonnet-5-5",
         "diagnostics": {
           "droppedRecommendations": [],
           "budgetBand": null,
           "searchSkipped": true,
           "usage": {
-            "inputTokens": 7706,
-            "outputTokens": 472,
-            "totalTokens": 8178
+            "inputTokens": 7700,
+            "outputTokens": 432,
+            "totalTokens": 8132
           }
         },
         "dataWarnings": []
