@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { stableId } from '../src/db/stable-id';
 import type { ApiClient, RunJson, TaskJson, TimedRun } from './lib/api';
-import { Assertion, checkSelfVerification, expectedNextDayAt10, firstMondayAfterAt10, recommendationsWithin } from './lib/eval-lib';
+import { Assertion, checkSelfVerification, expectedNextDayAt10, firstMondayAfterAt10, nextWorkingDayAt10, recommendationsWithin } from './lib/eval-lib';
 import type { ReasonToGrade } from './lib/grader';
 
 /**
@@ -166,6 +166,18 @@ async function inboundBody(ctx: EvalContext, token: string, leadId: string, mess
   return { body: m.body, sentAt: m.sentAt };
 }
 
+/** An urgent timeline with no contact timing: kind, urgency, one action due the next working day, the label in the notes. */
+async function checkUrgentTimeline(ctx: EvalContext, rec: CaseRecorder, t: TimedRun, leadId: string, kind: string): Promise<void> {
+  const timeline = t.run.requirements.timeline;
+  rec.check(`${t.label}: requirements.timeline is ${kind} and urgent`, timeline?.kind === kind && timeline.urgent === true, json(timeline));
+  const action = checkOneAction(rec, t);
+  const { sentAt } = await inboundBody(ctx, ctx.sara, leadId, t.run.messageId);
+  const expected = nextWorkingDayAt10(sentAt);
+  rec.check(`${t.label}: dueAt is the next working day after the message: ${expected}`, action?.task.dueAt === expected, json(action?.task.dueAt));
+  rec.check(`${t.label}: needsClarification is null`, action?.needsClarification === null, json(action?.needsClarification));
+  rec.check(`${t.label}: the task notes give the timeline`, !!timeline && (action?.task.notes ?? '').includes(timeline.label), json(action?.task.notes));
+}
+
 // ---------------------------------------------------------------------------------------------
 // Cases
 // ---------------------------------------------------------------------------------------------
@@ -238,8 +250,8 @@ export const CASES: EvalCase[] = [
   },
   {
     id: '04-lina-nothing-fits',
-    title: 'Nothing fits (Lina: 5BR villa in the Marina under 900k)',
-    covers: '3',
+    title: 'Nothing fits, ready to buy this week (Lina: 5BR villa in the Marina under 900k)',
+    covers: '3, 4',
     async run(ctx, rec) {
       const run = await ctx.api.startRun(ctx.sara, lead('lina'), 'Lina');
       const r = rec.use(run);
@@ -249,18 +261,22 @@ export const CASES: EvalCase[] = [
       rec.check('propertyType is villa', r.requirements.propertyType === 'villa', json(r.requirements.propertyType));
       rec.check('budgetAed.max is 900,000', r.requirements.budgetAed.max === 900_000, json(r.requirements.budgetAed));
       rec.check('a successful empty search is not reported as a failure', !('error' in r) && tools(run).includes('search_listings'), json(tools(run)));
+      // "Ready to buy this week": an urgent timeline, not vague contact timing.
+      await checkUrgentTimeline(ctx, rec, run, lead('lina'), 'this_week');
     },
   },
   {
     id: '05-priya-rent',
-    title: 'Rent enquiry against for-sale listings (Priya)',
-    covers: '3',
+    title: 'Rent enquiry against for-sale listings, moving next month (Priya)',
+    covers: '3, 4',
     async run(ctx, rec) {
       const run = await ctx.api.startRun(ctx.sara, lead('priya'), 'Priya');
       const r = rec.use(run);
       if (!checkCompleted(rec, run)) return;
       rec.check('intent is rent', r.requirements.intent === 'rent', json(r.requirements.intent));
       checkEmptyRecommendations(rec, run);
+      // "moving in next month": the lead is looking now, so a prompt follow-up.
+      await checkUrgentTimeline(ctx, rec, run, lead('priya'), 'next_month');
     },
   },
   {
@@ -537,6 +553,77 @@ export const CASES: EvalCase[] = [
       for (const c of checkSelfVerification(r, recommended)) rec.check(`${run.label}: ${c.name}`, c.pass, c.detail);
       const sv = r.diagnostics?.selfVerification;
       rec.info(`${run.label}: self-verification found ${sv?.issuesFound.length ?? 0} issue(s), ${sv?.fallbackReasons.length ?? 0} fallback reason(s)`, true, JSON.stringify(sv ?? null));
+    },
+  },
+  {
+    id: '17-timeline-this-week',
+    title: '"Ready to buy this week" sent on a Friday: follow up on Monday',
+    covers: '4 (timeline)',
+    async run(ctx, rec) {
+      // Fri 20 Nov 2026, 10:00 in Dubai: the week is 16-22 Nov and the next working day is Mon 23 Nov.
+      const leadId = await ctx.api.newLead(ctx.sara, 'Eval: ready this week', [
+        { body: 'Looking for a 2-bedroom apartment in Dubai Marina, budget around 2M AED. Ready to buy this week.', sentAt: '2026-11-20T06:00:00Z' },
+      ]);
+      const run = await ctx.api.startRun(ctx.sara, leadId, 'Ready this week (Friday)');
+      const r = rec.use(run);
+      if (!checkCompleted(rec, run)) return;
+      await checkUrgentTimeline(ctx, rec, run, leadId, 'this_week');
+      rec.check('dueAt is exactly 2026-11-23T10:00:00+04:00', r.proposedActions[0]?.task.dueAt === '2026-11-23T10:00:00+04:00', json(r.proposedActions[0]?.task.dueAt));
+      rec.check('the window is Monday 16 to Sunday 22 Nov 2026', r.requirements.timeline?.windowStart === '2026-11-16' && r.requirements.timeline?.windowEnd === '2026-11-22', json(r.requirements.timeline));
+    },
+  },
+  {
+    id: '18-timeline-stale',
+    title: '"This week" in a message 9 days old: the window is stale',
+    covers: '4 (timeline)',
+    async run(ctx, rec) {
+      const sentAt = new Date(Date.now() - 9 * 86_400_000).toISOString();
+      const leadId = await ctx.api.newLead(ctx.sara, 'Eval: stale this week', [
+        { body: 'I want a 2-bedroom apartment in Dubai Marina, budget around 2M AED. Ready to buy this week.', sentAt },
+      ]);
+      const run = await ctx.api.startRun(ctx.sara, leadId, 'Stale "this week"');
+      const r = rec.use(run);
+      if (!checkCompleted(rec, run)) return;
+      const timeline = r.requirements.timeline;
+      rec.check('requirements.timeline is this_week and stale', timeline?.kind === 'this_week' && timeline.stale === true, json(timeline));
+      rec.check('the summary says the window already ended', !!timeline && r.summary.includes(timeline.label) && /already ended/i.test(r.summary), r.summary);
+      const action = checkOneAction(rec, run);
+      rec.check(`dueAt stays anchored on sentAt: ${nextWorkingDayAt10(sentAt)}`, action?.task.dueAt === nextWorkingDayAt10(sentAt), json(action?.task.dueAt));
+    },
+  },
+  {
+    id: '19-timeline-contact-wins',
+    title: '"Call me Thursday" plus "buying next month": Thursday wins',
+    covers: '4 (timeline)',
+    async run(ctx, rec) {
+      // Mon 16 Nov 2026: Thursday is 19 Nov; the timeline alone would give Tue 17 Nov.
+      const leadId = await ctx.api.newLead(ctx.sara, 'Eval: Thursday vs next month', [
+        { body: "Call me Thursday please. We're buying a 2-bedroom apartment in Dubai Marina next month, budget up to 2.1M.", sentAt: '2026-11-16T06:00:00Z' },
+      ]);
+      const run = await ctx.api.startRun(ctx.sara, leadId, 'Thursday vs next month');
+      const r = rec.use(run);
+      if (!checkCompleted(rec, run)) return;
+      rec.check('requirements.timeline is next_month and urgent', r.requirements.timeline?.kind === 'next_month' && r.requirements.timeline.urgent === true, json(r.requirements.timeline));
+      const action = checkOneAction(rec, run);
+      rec.check('dueAt is Thursday 2026-11-19T10:00:00+04:00', action?.task.dueAt === '2026-11-19T10:00:00+04:00', json(action?.task.dueAt));
+      rec.check('needsClarification is null', action?.needsClarification === null, json(action?.needsClarification));
+    },
+  },
+  {
+    id: '20-timeline-no-rush',
+    title: '"No rush, maybe next year": no urgent follow-up',
+    covers: '4 (timeline)',
+    async run(ctx, rec) {
+      const leadId = await ctx.api.newLead(ctx.sara, 'Eval: no rush', [
+        { body: 'Thinking about a 4-bed villa in Arabian Ranches, budget up to 7M. No rush, maybe next year.', sentAt: '2026-11-16T06:00:00Z' },
+      ]);
+      const run = await ctx.api.startRun(ctx.sara, leadId, 'No rush');
+      const r = rec.use(run);
+      if (!checkCompleted(rec, run)) return;
+      const timeline = r.requirements.timeline;
+      rec.check('requirements.timeline is not urgent (no_rush, or none)', !timeline?.urgent, json(timeline));
+      rec.check('no dated follow-up is proposed', r.proposedActions.every((a) => a.task.dueAt === null), json(r.proposedActions.map((a) => a.task.dueAt)));
+      rec.info('requirements.timeline is no_rush', timeline?.kind === 'no_rush', json(timeline));
     },
   },
 ];

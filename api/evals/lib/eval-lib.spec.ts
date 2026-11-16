@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { stableId } from '../../src/db/stable-id';
 import type { PropertyJson, RunJson } from './api';
-import { checkSelfVerification, recommendationsWithin, costUsd, costWithoutCacheUsd, dubaiDate, expectedNextDayAt10, firstMondayAfterAt10, verdictOf, renderReport } from './eval-lib';
+import { checkSelfVerification, recommendationsWithin, costUsd, costWithoutCacheUsd, dubaiDate, expectedNextDayAt10, firstMondayAfterAt10, nextWorkingDayAt10, verdictOf, renderReport } from './eval-lib';
 
 describe('eval helpers', () => {
   it('gives the Asia/Dubai calendar date of an instant', () => {
@@ -20,6 +20,13 @@ describe('eval helpers', () => {
     expect(firstMondayAfterAt10('2026-11-14T10:20:00Z')).toBe('2026-11-16T10:00:00+04:00'); // Saturday
     expect(firstMondayAfterAt10('2026-11-16T05:00:00Z')).toBe('2026-11-23T10:00:00+04:00'); // a Monday
     expect(firstMondayAfterAt10('2026-11-15T21:00:00Z')).toBe('2026-11-23T10:00:00+04:00'); // Monday 01:00 in Dubai
+  });
+
+  it('expects an urgent timeline follow-up on the next Monday-to-Friday Dubai date after the sent date', () => {
+    expect(nextWorkingDayAt10('2026-11-16T06:00:00Z')).toBe('2026-11-17T10:00:00+04:00'); // Monday -> Tuesday
+    expect(nextWorkingDayAt10('2026-11-20T06:00:00Z')).toBe('2026-11-23T10:00:00+04:00'); // Friday -> Monday
+    expect(nextWorkingDayAt10('2026-11-21T06:00:00Z')).toBe('2026-11-23T10:00:00+04:00'); // Saturday -> Monday
+    expect(nextWorkingDayAt10('2026-11-19T21:30:00Z')).toBe('2026-11-23T10:00:00+04:00'); // Friday 01:30 in Dubai
   });
 
   it('prices tokens per model and returns null for an unknown model', () => {

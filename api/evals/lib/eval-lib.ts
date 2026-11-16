@@ -88,6 +88,13 @@ export function firstMondayAfterAt10(sentAt: string): string {
   return at10(date);
 }
 
+/** An urgent timeline with no contact timing: the first Monday-to-Friday Dubai date after the sent date, at 10:00. */
+export function nextWorkingDayAt10(sentAt: string): string {
+  let date = addDays(dubaiDate(sentAt), 1);
+  while ([0, 6].includes(new Date(`${date}T00:00:00Z`).getUTCDay())) date = addDays(date, 1);
+  return at10(date);
+}
+
 function priced(model: string, usage: Usage) {
   return priceUsage(model, { ...usage, totalTokens: usage.totalTokens ?? usage.inputTokens + usage.outputTokens });
 }
