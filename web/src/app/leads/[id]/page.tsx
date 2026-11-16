@@ -81,7 +81,14 @@ export default function LeadPage() {
                 <MessageThread messages={lead.messages} timeZone={timeZone} />
               </section>
               <div className="space-y-6">
-                <AssistantPanel lead={lead} />
+                <AssistantPanel
+                  key={lead.id}
+                  lead={lead}
+                  token={session.token}
+                  timeZone={timeZone}
+                  onApproved={() => loadTasks().catch(handleError)}
+                  onUnauthorized={logout}
+                />
                 <section className="rounded-xl bg-white p-4 ring-1 ring-gray-200">
                   <h2 className="mb-3 font-semibold">Tasks</h2>
                   <TaskList tasks={tasks.items} total={tasks.total} timeZone={timeZone} onToggle={toggleTask} />
