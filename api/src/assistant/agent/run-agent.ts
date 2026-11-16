@@ -243,7 +243,7 @@ export async function runAssistantAgent(ctx: AgentRunContext, deps: RunAgentDeps
       ...common,
       model,
       system: cachedSystem(EXTRACTION_SYSTEM),
-      prompt: extractionPrompt({ message: ctx.message, thread: ctx.thread, agencyAreas }),
+      prompt: extractionPrompt({ message: ctx.message, thread: ctx.thread, agencyAreas, lead: { status: ctx.lead.status ?? null, notes: ctx.lead.notes ?? null } }),
       output: Output.object({ schema: extractionSchema }),
       maxOutputTokens: EXTRACTION_MAX_TOKENS,
       providerOptions: { anthropic: { effort: EXTRACTION_EFFORT } },

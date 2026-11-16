@@ -313,7 +313,7 @@ export interface AgentRunContext {
   agentId: string;
   /** IANA zone of the logged-in agent, e.g. "Asia/Dubai". */
   agentTimezone: string;
-  lead: { id: string; name: string };
+  lead: { id: string; name: string; status?: string | null; notes?: string | null };
   /** The analysed message. */
   message: AgentMessage;
   /** Messages sent at or before the analysed one, oldest first, excluding it. */

@@ -50,7 +50,7 @@ export default function LeadsScreen() {
       onEndReached={() => {
         if (!loading && leads.length < total) void load(leads.length);
       }}
-      ListHeaderComponent={error ? <Text style={styles.error}>{error}</Text> : null}
+      ListHeaderComponent={error ? <Text style={styles.error}>{error}</Text> : undefined}
       ListEmptyComponent={
         loading ? <ActivityIndicator style={styles.spinner} /> : <Text style={styles.empty}>No leads yet.</Text>
       }

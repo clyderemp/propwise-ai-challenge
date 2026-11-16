@@ -243,7 +243,7 @@ export class AssistantService implements OnApplicationBootstrap, BeforeApplicati
           agencyId: auth.agencyId,
           agentId: agent.id,
           agentTimezone: agent.timezone,
-          lead: { id: lead.id, name: lead.name },
+          lead: { id: lead.id, name: lead.name, status: lead.status ?? null, notes: lead.notes ?? null },
           message: toAgentMessage(message),
           thread: thread.map(toAgentMessage),
           trace: {

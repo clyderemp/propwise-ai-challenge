@@ -377,9 +377,9 @@ describe('normalizeExtraction', () => {
 });
 
 describe('AnthropicLlmGateway', () => {
-  it('defaults to claude-sonnet-5-5 and honours ASSISTANT_MODEL', () => {
-    expect(new AnthropicLlmGateway({}).modelId).toBe('claude-sonnet-5-5');
-    expect(new AnthropicLlmGateway({ ASSISTANT_MODEL: 'claude-opus-5-5' }).modelId).toBe('claude-opus-5-5');
+  it('defaults to claude-opus-5-5 and honours ASSISTANT_MODEL', () => {
+    expect(new AnthropicLlmGateway({}).modelId).toBe('claude-opus-5-5');
+    expect(new AnthropicLlmGateway({ ASSISTANT_MODEL: 'claude-sonnet-5-5' }).modelId).toBe('claude-sonnet-5-5');
   });
 
   it('refuses to build a model without an API key, as a model failure', () => {

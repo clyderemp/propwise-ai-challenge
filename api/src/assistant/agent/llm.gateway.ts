@@ -5,7 +5,7 @@ import { AgentRunError } from '../assistant.types';
 /** Nest injection token for an LlmGateway override (tests, evals). */
 export const ASSISTANT_LLM_GATEWAY = 'ASSISTANT_LLM_GATEWAY' as const;
 
-export const DEFAULT_ASSISTANT_MODEL = 'claude-sonnet-5-5';
+export const DEFAULT_ASSISTANT_MODEL = 'claude-opus-5-5';
 export const NOT_CONFIGURED_MESSAGE = 'The assistant is not configured (ANTHROPIC_API_KEY is not set).';
 
 /**
