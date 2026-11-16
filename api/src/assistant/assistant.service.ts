@@ -1,8 +1,10 @@
+import { RequestContext } from '@mikro-orm/core';
 import { EntityManager } from '@mikro-orm/postgresql';
 import {
   ConflictException,
   Inject,
   Injectable,
+  BeforeApplicationShutdown,
   Logger,
   NotFoundException,
   OnApplicationBootstrap,
@@ -48,7 +50,27 @@ const MAX_NOTES = 5000;
 const MAX_ERROR = 500;
 /** Slack after the deadline before a 'running' run is treated as orphaned (the run's own failure write). */
 const OVERDUE_GRACE_MS = 15_000;
-const INTERRUPTED_ERROR = 'The run was interrupted (the API restarted or crashed before it finished). Start a new analysis.';
+/** The error of a run cut off by a restart, a crash or a shutdown. */
+export const RESTART_ERROR = 'The API restarted while this run was in progress, so it did not finish.';
+/** How long a shutdown waits for in-flight runs to store their failure. */
+const SHUTDOWN_WAIT_MS = 5_000;
+
+/** The abort reason of a run cut off because the API is shutting down. */
+class RunInterruptedError extends Error {
+  constructor() {
+    super(RESTART_ERROR);
+    this.name = 'RunInterruptedError';
+  }
+}
+
+/** What a run needs besides its row: loaded once, before the agent starts. */
+interface RunInputs {
+  auth: AuthAgent;
+  agent: Agent;
+  lead: Lead;
+  message: Message;
+  thread: Message[];
+}
 
 function runTimeoutMs(): number {
   const value = Number(process.env.ASSISTANT_RUN_TIMEOUT_MS);
@@ -65,6 +87,7 @@ function clamp(text: string, max: number): string {
 
 /** A readable reason for a failed run. Never "no matching properties". */
 export function describeFailure(error: unknown, timeoutMs: number): string {
+  if (error instanceof RunInterruptedError) return RESTART_ERROR;
   if (error instanceof AgentRunError) {
     if (error.kind === 'timeout') return `The assistant timed out after ${Math.round(timeoutMs / 1000)} seconds.`;
     return clamp(error.message, MAX_ERROR);
@@ -75,8 +98,10 @@ export function describeFailure(error: unknown, timeoutMs: number): string {
 }
 
 @Injectable()
-export class AssistantService implements OnApplicationBootstrap {
+export class AssistantService implements OnApplicationBootstrap, BeforeApplicationShutdown {
   private readonly logger = new Logger(AssistantService.name);
+  /** Runs executing in this process (sync and background), so a shutdown can fail them cleanly. */
+  private readonly inFlight = new Map<string, { controller: AbortController; done: Promise<unknown> }>();
 
   constructor(
     private readonly em: EntityManager,
@@ -87,15 +112,78 @@ export class AssistantService implements OnApplicationBootstrap {
   async createRun(auth: AuthAgent, leadId: string, dto: CreateAssistantRunDto): Promise<AssistantRun> {
     const lead = await this.findLead(auth.agencyId, leadId);
     const message = await this.pickMessage(lead, dto.messageId);
-    const agent = await this.em.findOneOrFail(Agent, { id: auth.id, agency: auth.agencyId });
-    const thread = await this.em.find(
+    const inputs = await this.loadInputs(this.em, auth, lead, message);
+    const run = this.newRun(this.em, inputs);
+    await this.em.flush();
+    const actions = await this.execute(this.em, run, inputs);
+    return toAssistantRunDto(run, actions);
+  }
+
+  /**
+   * Background run (?async=true). Validates exactly like createRun, stores the run as 'running' and returns it
+   * at once; the agent then runs in this process on its own EntityManager, detached from the request.
+   * A lead runs at most one background analysis at a time: a second start is a 409 that names the running run.
+   */
+  async startBackgroundRun(auth: AuthAgent, leadId: string, dto: CreateAssistantRunDto): Promise<AssistantRun> {
+    const lead = await this.findLead(auth.agencyId, leadId);
+    const message = await this.pickMessage(lead, dto.messageId);
+    await this.failOverdueRunsOfLead(auth.agencyId, lead.id);
+
+    const runId = await this.em.transactional(async (tx) => {
+      // Serialises concurrent starts on one lead, so the check below and the insert cannot interleave.
+      await tx.execute('select pg_advisory_xact_lock(hashtextextended(?, 0))', [`assistant-run:${lead.id}`]);
+      const running = await tx.findOne(
+        AssistantRunEntity,
+        { lead: lead.id, agency: auth.agencyId, status: 'running' },
+        { orderBy: { createdAt: 'desc', id: 'desc' }, fields: ['id'] },
+      );
+      if (running) {
+        throw new ConflictException({
+          statusCode: 409,
+          message: 'An analysis is already running for this lead. Follow that run instead of starting another.',
+          runId: running.id,
+        });
+      }
+      const inputs = await this.loadInputs(tx, auth, tx.getReference(Lead, lead.id), tx.getReference(Message, message.id));
+      const run = this.newRun(tx, inputs);
+      await tx.flush();
+      return run.id;
+    });
+
+    const em = this.em.fork({ clear: true });
+    const run = await em.findOneOrFail(AssistantRunEntity, { id: runId }, { populate: ['lead', 'message'] });
+    const response = toAssistantRunDto(run, []);
+
+    // Detached from the request: its own EntityManager and context, so nothing depends on the request living on.
+    void RequestContext.create(em, async () => {
+      try {
+        const inputs = await this.loadInputs(em, auth, run.lead, run.message);
+        await this.execute(em, run, inputs);
+      } catch (error) {
+        // Only storing the outcome can land here (the agent's own failures end the run as failed).
+        // The row stays 'running' until the on-read expiry or the next boot fails it.
+        this.logger.error(`Background run ${runId} could not be stored: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    });
+    return response;
+  }
+
+  /** The agent who asked, and the messages before the analysed one (oldest first). */
+  private async loadInputs(em: EntityManager, auth: AuthAgent, lead: Lead, message: Message): Promise<RunInputs> {
+    const agent = await em.findOneOrFail(Agent, { id: auth.id, agency: auth.agencyId });
+    const loadedLead = await em.findOneOrFail(Lead, { id: lead.id, agency: auth.agencyId });
+    const loadedMessage = await em.findOneOrFail(Message, { id: message.id, lead: lead.id });
+    const thread = await em.find(
       Message,
-      { lead, sentAt: { $lte: message.sentAt }, id: { $ne: message.id } },
+      { lead: lead.id, sentAt: { $lte: loadedMessage.sentAt }, id: { $ne: loadedMessage.id } },
       { orderBy: { sentAt: 'desc', id: 'desc' }, limit: THREAD_LIMIT },
     );
+    return { auth, agent, lead: loadedLead, message: loadedMessage, thread: thread.reverse() };
+  }
 
-    const run = this.em.create(AssistantRunEntity, {
-      agency: this.em.getReference(Agency, auth.agencyId),
+  private newRun(em: EntityManager, { auth, agent, lead, message }: RunInputs): AssistantRunEntity {
+    return em.create(AssistantRunEntity, {
+      agency: em.getReference(Agency, auth.agencyId),
       lead,
       message,
       requestedBy: agent,
@@ -103,19 +191,37 @@ export class AssistantService implements OnApplicationBootstrap {
       requirements: emptyRequirements(),
       recommendations: [],
       trace: [],
+      model: this.agent.modelId ?? null,
     });
-    await this.em.flush();
+  }
 
+  /**
+   * Runs the agent under the deadline and stores the run as completed or failed. Never throws for an agent
+   * failure. Every tool call is written to the row as it happens, so GET shows the calls made so far.
+   */
+  private async execute(em: EntityManager, run: AssistantRunEntity, inputs: RunInputs): Promise<ProposedActionEntity[]> {
+    const { auth, agent, lead, message, thread } = inputs;
     const recorded: TraceEntry[] = [];
     const timeoutMs = runTimeoutMs();
     const controller = new AbortController();
-    let timer: NodeJS.Timeout | undefined;
-    const deadline = new Promise<never>((_, reject) => {
-      timer = setTimeout(() => {
-        controller.abort();
-        reject(new AgentRunError('timeout', 'Deadline reached.', [...recorded]));
-      }, timeoutMs);
+    // Rejects with the abort reason: the deadline (AgentRunError 'timeout') or a shutdown (RunInterruptedError).
+    const aborted = new Promise<never>((_, reject) => {
+      controller.signal.addEventListener('abort', () => reject(controller.signal.reason), { once: true });
     });
+    aborted.catch(() => undefined);
+    const timer = setTimeout(() => controller.abort(new AgentRunError('timeout', 'Deadline reached.', [...recorded])), timeoutMs);
+
+    let traceWrites: Promise<void> = Promise.resolve();
+    const persistTrace = (): Promise<void> => {
+      const snapshot = [...recorded];
+      traceWrites = traceWrites
+        .then(() => this.storeTrace(run.id, snapshot))
+        .catch((error: unknown) => this.logger.warn(`Could not store the trace of run ${run.id}: ${error instanceof Error ? error.message : String(error)}`));
+      return traceWrites;
+    };
+
+    let settle!: () => void;
+    this.inFlight.set(run.id, { controller, done: new Promise<void>((resolve) => (settle = resolve)) });
 
     let actions: ProposedActionEntity[] = [];
     try {
@@ -127,47 +233,81 @@ export class AssistantService implements OnApplicationBootstrap {
           agentTimezone: agent.timezone,
           lead: { id: lead.id, name: lead.name },
           message: toAgentMessage(message),
-          thread: thread.reverse().map(toAgentMessage),
-          trace: { record: (entry) => void recorded.push(entry) },
+          thread: thread.map(toAgentMessage),
+          trace: {
+            record: (entry) => {
+              recorded.push(entry);
+              return persistTrace();
+            },
+          },
           signal: controller.signal,
         }),
-        deadline,
+        aborted,
       ]);
-      actions = await this.complete(run, outcome, recorded, auth, agent.timezone, message, lead);
-    } catch (error) {
+      await traceWrites;
+      actions = await this.complete(em, run, outcome, recorded, auth, agent.timezone, message, lead);
+    } catch (caught) {
+      // Once aborted, the abort reason is the cause, whatever the agent threw while unwinding.
+      const error: unknown = controller.signal.aborted ? controller.signal.reason : caught;
       this.logger.warn(`Assistant run ${run.id} failed: ${error instanceof Error ? error.message : String(error)}`);
-      const agentTrace = error instanceof AgentRunError ? error.trace : [];
+      await traceWrites;
+      const agentTrace = error instanceof AgentRunError ? error.trace : caught instanceof AgentRunError ? caught.trace : [];
       run.status = 'failed';
       run.error = describeFailure(error, timeoutMs);
       run.requirements = emptyRequirements();
       run.recommendations = [];
       run.trace = longest(agentTrace, recorded);
       run.model = this.agent.modelId ?? null;
-      if (error instanceof AgentRunError && error.usage) {
-        run.diagnostics = { droppedRecommendations: [], budgetBand: null, searchSkipped: false, usage: error.usage };
+      const usage = error instanceof AgentRunError ? error.usage : caught instanceof AgentRunError ? caught.usage : undefined;
+      if (usage) {
+        run.diagnostics = { droppedRecommendations: [], budgetBand: null, searchSkipped: false, usage };
       }
       run.finishedAt = new Date();
       actions = [];
-      await this.em.flush();
+      await em.flush();
     } finally {
       clearTimeout(timer);
+      this.inFlight.delete(run.id);
+      settle();
     }
-    return toAssistantRunDto(run, actions);
+    return actions;
+  }
+
+  /** Writes the trace so far, only while the run is still running (the final write always wins). */
+  private async storeTrace(runId: string, trace: TraceEntry[]): Promise<void> {
+    await this.em.fork().nativeUpdate(AssistantRunEntity, { id: runId, status: 'running' }, { trace });
+  }
+
+  /** Fails every run still executing in this process with RESTART_ERROR, and waits for those writes. */
+  async beforeApplicationShutdown(): Promise<void> {
+    const runs = [...this.inFlight.values()];
+    if (runs.length === 0) return;
+    this.logger.warn(`Shutting down: failing ${runs.length} assistant run(s) in progress.`);
+    for (const { controller } of runs) controller.abort(new RunInterruptedError());
+    let timer: NodeJS.Timeout | undefined;
+    await Promise.race([
+      Promise.allSettled(runs.map((r) => r.done)),
+      new Promise((resolve) => (timer = setTimeout(resolve, SHUTDOWN_WAIT_MS))),
+    ]);
+    clearTimeout(timer);
   }
 
   /**
-   * A run still 'running' well past the deadline was cut off by a restart or crash: no process will ever
-   * finish it. Called at startup. Only runs older than twice the deadline are touched, so a second API
-   * process (or an eval) sharing the database never fails a run that is still in flight.
+   * At startup no run of this process exists yet, so every run still 'running' was cut off by a restart or
+   * crash and will never finish: fail them all. Assumes one API process per database (see NOTES.md).
    */
   async failInterruptedRuns(): Promise<number> {
-    return this.failRunningOlderThan(2 * runTimeoutMs(), {});
+    return this.em.fork().nativeUpdate(
+      AssistantRunEntity,
+      { status: 'running' },
+      { status: 'failed', error: RESTART_ERROR, finishedAt: new Date() },
+    );
   }
 
   /**
-   * Expire on read: every live run fails itself at the deadline, so a lead's run still 'running' after the
-   * deadline plus a grace period has no process behind it (e.g. the API restarted mid-run and came back
-   * before the startup cutoff). Without this the panels would show it as in progress forever.
+   * Expire on read, the second guard: every live run fails itself at the deadline, so a lead's run still
+   * 'running' after the deadline plus a grace period has no process behind it (e.g. a crash whose boot sweep
+   * failed, or a second process sharing the database). Without this the panels would show it running forever.
    */
   private failOverdueRunsOfLead(agencyId: string, leadId: string): Promise<number> {
     return this.failRunningOlderThan(runTimeoutMs() + OVERDUE_GRACE_MS, { agency: agencyId, lead: leadId });
@@ -178,7 +318,7 @@ export class AssistantService implements OnApplicationBootstrap {
     return this.em.fork().nativeUpdate(
       AssistantRunEntity,
       { ...scope, status: 'running', createdAt: { $lt: cutoff } },
-      { status: 'failed', error: INTERRUPTED_ERROR, finishedAt: new Date() },
+      { status: 'failed', error: RESTART_ERROR, finishedAt: new Date() },
     );
   }
 
@@ -268,6 +408,7 @@ export class AssistantService implements OnApplicationBootstrap {
 
   /** Validates the agent's picks against the database and stores the completed run with its action. */
   private async complete(
+    em: EntityManager,
     run: AssistantRunEntity,
     outcome: AgentOutcome,
     recorded: TraceEntry[],
@@ -278,7 +419,7 @@ export class AssistantService implements OnApplicationBootstrap {
   ): Promise<ProposedActionEntity[]> {
     // Re-read every listing from the database, scoped to the agency: nothing the model says about a
     // listing is trusted, and ids of other agencies are simply not found.
-    const listings: ListingRecord[] = (await this.em.find(Property, { agency: auth.agencyId }, { refresh: true })).map(toListingRecord);
+    const listings: ListingRecord[] = (await em.find(Property, { agency: auth.agencyId }, { refresh: true })).map(toListingRecord);
     const requirements = outcome.extraction.requirements;
     const validation = validateRecommendations({
       candidates: outcome.candidates,
@@ -333,8 +474,8 @@ export class AssistantService implements OnApplicationBootstrap {
     const actions: ProposedActionEntity[] = [];
     if (draft) {
       actions.push(
-        this.em.create(ProposedActionEntity, {
-          agency: this.em.getReference(Agency, auth.agencyId),
+        em.create(ProposedActionEntity, {
+          agency: em.getReference(Agency, auth.agencyId),
           run,
           lead,
           type: 'create_follow_up_task',
@@ -344,7 +485,7 @@ export class AssistantService implements OnApplicationBootstrap {
         }),
       );
     }
-    await this.em.flush(); // one transaction: the run and its action together
+    await em.flush(); // one transaction: the run and its action together
     return actions;
   }
 

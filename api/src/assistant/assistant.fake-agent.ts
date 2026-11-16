@@ -31,6 +31,7 @@ export const FAKE_AGENT_MODEL = 'fake-scripted';
  *   [fake:fail-model]      the "model" fails before any tool call
  *   [fake:throw]           a plain Error (not an AgentRunError)
  *   [fake:slow:<ms>]       waits, honouring the abort signal
+ *   [fake:pause-after-search:<ms>]  records the search, then waits (background-run tests read the partial trace)
  *   [fake:candidate:<id>]  also proposes <id>, as if a tool had returned it
  *   [fake:unseen:<id>]     also proposes <id>, without any tool having returned it
  */
@@ -89,6 +90,8 @@ export class FakeAssistantAgent implements AgentPort {
       );
       const items = rows.map((p) => ({ id: p.id, reference: p.reference, area: p.area, bedrooms: p.bedrooms, priceAed: p.priceAed }));
       await record({ tool: 'search_listings', input, output: items.length ? { items } : null, durationMs: Date.now() - started });
+      const pause = /\[fake:pause-after-search:(\d+)\]/.exec(body);
+      if (pause) await sleep(Number(pause[1]), ctx.signal);
       for (const item of items) {
         seen.add(item.id);
         candidates.push({ propertyId: item.id, reason: `Scripted pick: ${item.reference} in ${item.area}.` });

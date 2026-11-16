@@ -7,7 +7,6 @@ import request from 'supertest';
 import { App } from 'supertest/types';
 import { stableId } from '../src/db/stable-id';
 import { Agent } from '../src/entities';
-import { AssistantService } from '../src/assistant/assistant.service';
 import { bearer, bootApp, login, OMAR, SARA } from './helpers';
 
 const KARIM = stableId('lead', 'karim');
@@ -18,6 +17,8 @@ const LINA_MESSAGE = stableId('message', 'lina:0');
 const DKP_2001 = stableId('property', 'DKP-2001');
 const MBR_1005_SOLD = stableId('property', 'MBR-1005');
 const MBR_1009 = stableId('property', 'MBR-1009');
+
+const RESTART_ERROR = 'The API restarted while this run was in progress, so it did not finish.';
 
 const EMPTY_REQUIREMENTS = {
   locations: [],
@@ -352,32 +353,32 @@ describe('AI assistant API (scripted agent)', () => {
   });
 
   describe('runs cut off by a restart', () => {
-    it('marks runs left running past the deadline as failed, and leaves recent ones alone', async () => {
-      const orm = app.get(MikroORM);
-      const em = orm.em.fork();
-      const stale = await startRun(sara, LINA);
-      const fresh = await startRun(sara, LINA);
+    it('on boot, fails every run still running, whatever its age, with an error that says why', async () => {
+      const em = app.get(MikroORM).em.fork();
+      const old = await startRun(sara, LINA);
+      const young = await startRun(sara, LINA);
       await em.getConnection().execute(
         `update assistant_runs set status = 'running', finished_at = null, created_at = now() - interval '1 hour' where id = ?`,
-        [stale.id],
+        [old.id],
       );
-      await em.getConnection().execute(`update assistant_runs set status = 'running', finished_at = null where id = ?`, [fresh.id]);
+      await em.getConnection().execute(`update assistant_runs set status = 'running', finished_at = null where id = ?`, [young.id]);
 
-      const swept = await app.get(AssistantService).failInterruptedRuns();
-      expect(swept).toBeGreaterThanOrEqual(1);
+      // A second API process boots against the same database, as after a restart.
+      const restarted = await bootApp();
+      await restarted.close();
 
-      const staleNow = (await http().get(`${runsPath(LINA)}/${stale.id}`).set(bearer(sara)).expect(200)).body;
-      expect(staleNow).toMatchObject({ status: 'failed', recommendations: [], proposedActions: [], requirements: EMPTY_REQUIREMENTS });
-      expect(staleNow.error).toMatch(/interrupted/i);
-      const freshNow = (await http().get(`${runsPath(LINA)}/${fresh.id}`).set(bearer(sara)).expect(200)).body;
-      expect(freshNow.status).toBe('running');
+      for (const id of [old.id, young.id]) {
+        const now = (await http().get(`${runsPath(LINA)}/${id}`).set(bearer(sara)).expect(200)).body;
+        expect(now).toMatchObject({ status: 'failed', recommendations: [], proposedActions: [], requirements: EMPTY_REQUIREMENTS });
+        expect(now.error).toBe(RESTART_ERROR);
+      }
     });
 
     it('a young orphan (restart within twice the deadline) ends failed on read once its deadline has passed', async () => {
       const em = app.get(MikroORM).em.fork();
       const orphan = await startRun(sara, LINA);
       const inFlight = await startRun(sara, LINA);
-      // 150 s old: past the 110 s run deadline (plus grace), younger than the 220 s startup cutoff.
+      // 150 s old: past the 110 s run deadline (plus grace). No restart happened, so only the on-read guard can catch it.
       await em.getConnection().execute(
         `update assistant_runs set status = 'running', finished_at = null, created_at = now() - interval '150 seconds' where id = ?`,
         [orphan.id],
@@ -387,7 +388,7 @@ describe('AI assistant API (scripted agent)', () => {
       const listed = (await http().get(`${runsPath(LINA)}?limit=5`).set(bearer(sara)).expect(200)).body as Json[];
       const orphanListed = listed.find((r) => r.id === orphan.id);
       expect(orphanListed).toMatchObject({ status: 'failed', recommendations: [], proposedActions: [], requirements: EMPTY_REQUIREMENTS });
-      expect(orphanListed?.error).toMatch(/interrupted/i);
+      expect(orphanListed?.error).toBe(RESTART_ERROR);
       expect(listed.find((r) => r.id === inFlight.id)?.status).toBe('running');
 
       const fetched = (await http().get(`${runsPath(LINA)}/${orphan.id}`).set(bearer(sara)).expect(200)).body;
@@ -511,6 +512,174 @@ describe('AI assistant API (scripted agent)', () => {
       const run = await startRun(sara, leadId);
       expect(run.proposedActions.every((a: Json) => a.status === 'pending_approval')).toBe(true);
       expect(await tasksOf(sara, leadId)).toEqual(before);
+    });
+  });
+  describe('background runs (?async=true)', () => {
+    const asyncPath = (leadId: string) => `${runsPath(leadId)}?async=true`;
+    /** The fake agent records its search, then waits this long before finishing. */
+    const PAUSED = '2-bedroom apartment in Dubai Marina around 2M, call me tomorrow [fake:pause-after-search:1500]';
+
+    async function startAsync(token: string, leadId: string, body: Json = {}): Promise<Json> {
+      return (await http().post(asyncPath(leadId)).set(bearer(token)).send(body).expect(202)).body;
+    }
+
+    async function getRun(token: string, leadId: string, runId: string): Promise<Json> {
+      return (await http().get(`${runsPath(leadId)}/${runId}`).set(bearer(token)).expect(200)).body;
+    }
+
+    /** Polls GET until `done` holds. */
+    async function waitForRun(token: string, leadId: string, runId: string, done: (run: Json) => boolean = (r) => r.status !== 'running') {
+      const giveUp = Date.now() + 15_000;
+      for (;;) {
+        const run = await getRun(token, leadId, runId);
+        if (done(run)) return run;
+        if (Date.now() > giveUp) throw new Error(`Run ${runId} never reached the expected state: ${JSON.stringify(run)}`);
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      }
+    }
+
+    it('answers 202 straight away with the run running and the empty result fields', async () => {
+      const leadId = await newLead(sara, 'Async shape', [{ direction: 'inbound', body: PAUSED }]);
+      const started = Date.now();
+      const response = await http().post(asyncPath(leadId)).set(bearer(sara)).send({}).expect(202);
+      expect(Date.now() - started).toBeLessThan(1_500);
+
+      const run = response.body;
+      expect(run).toEqual({
+        id: expect.any(String),
+        leadId,
+        messageId: expect.any(String),
+        status: 'running',
+        requirements: EMPTY_REQUIREMENTS,
+        recommendations: [],
+        summary: '',
+        proposedActions: [],
+        trace: [],
+        createdAt: expect.any(String),
+        model: 'fake-scripted',
+        dataWarnings: [],
+      });
+      expect(run).not.toHaveProperty('error');
+      await waitForRun(sara, leadId, run.id);
+    });
+
+    it('shows the tool calls made so far while it runs, then ends completed with the same shape as a sync run', async () => {
+      const leadId = await newLead(sara, 'Async live trace', [{ direction: 'inbound', body: PAUSED }]);
+      const run = await startAsync(sara, leadId);
+
+      const midway = await waitForRun(sara, leadId, run.id, (r) => r.trace.length > 0);
+      expect(midway.status).toBe('running');
+      expect(midway.trace).toHaveLength(1);
+      expect(midway.trace[0]).toMatchObject({ tool: 'search_listings', durationMs: expect.any(Number) });
+      expect(midway.trace[0]).toHaveProperty('output');
+      expect(midway.recommendations).toEqual([]);
+      expect(midway.proposedActions).toEqual([]);
+
+      const done = await waitForRun(sara, leadId, run.id);
+      expect(done.status).toBe('completed');
+      expect(done.trace).toEqual(midway.trace);
+      expect(done.recommendations.length).toBeGreaterThan(0);
+      expect(done.proposedActions).toHaveLength(1);
+      expect(done.proposedActions[0].status).toBe('pending_approval');
+
+      const sync = await startRun(sara, leadId);
+      expect(Object.keys(done).sort()).toEqual(Object.keys(sync).sort());
+      expect(done.requirements).toEqual(sync.requirements);
+      expect(done.recommendations).toEqual(sync.recommendations);
+      expect(done.proposedActions.map((a: Json) => a.task)).toEqual(sync.proposedActions.map((a: Json) => a.task));
+    });
+
+    it('ends failed, with the empty contract shape and the failed call in the trace, when a tool fails', async () => {
+      const leadId = await newLead(sara, 'Async tool failure', [{ direction: 'inbound', body: '2-bedroom apartment in Dubai Marina [fake:fail-tool]' }]);
+      const before = await tasksOf(sara, leadId);
+      const run = await startAsync(sara, leadId);
+      expect(run.status).toBe('running');
+
+      const done = await waitForRun(sara, leadId, run.id);
+      expect(done.status).toBe('failed');
+      expect(done.error).toMatch(/search_listings/);
+      expect(done.requirements).toEqual(EMPTY_REQUIREMENTS);
+      expect(done.recommendations).toEqual([]);
+      expect(done.proposedActions).toEqual([]);
+      expect(done.trace).toEqual([expect.objectContaining({ tool: 'search_listings', error: expect.any(String) })]);
+      expect(await tasksOf(sara, leadId)).toEqual(before);
+    });
+
+    it('fails a background run at the same deadline as a sync run', async () => {
+      process.env.ASSISTANT_RUN_TIMEOUT_MS = '300';
+      try {
+        const leadId = await newLead(sara, 'Async slow', [{ direction: 'inbound', body: '2-bedroom apartment in Dubai Marina [fake:slow:5000]' }]);
+        const run = await startAsync(sara, leadId);
+        const done = await waitForRun(sara, leadId, run.id);
+        expect(done.status).toBe('failed');
+        expect(done.error).toMatch(/timed out/i);
+      } finally {
+        delete process.env.ASSISTANT_RUN_TIMEOUT_MS;
+      }
+    });
+
+    it('validates before answering 202: 404 for unknown or foreign leads and messages, 400 for malformed input, 422 without an inbound message', async () => {
+      await http().post(asyncPath(NADIA)).set(bearer(sara)).send({}).expect(404);
+      await http().post(asyncPath('00000000-0000-4000-8000-000000000000')).set(bearer(sara)).send({}).expect(404);
+      await http().post(asyncPath(KARIM)).set(bearer(sara)).send({ messageId: LINA_MESSAGE }).expect(404);
+      await http().post(asyncPath(KARIM)).set(bearer(sara)).send({ messageId: 'nope' }).expect(400);
+      await http().post(asyncPath('abc')).set(bearer(sara)).send({}).expect(400);
+      const silent = await newLead(sara, 'Async no inbound', [{ direction: 'outbound', body: 'Hello from Sara' }]);
+      await http().post(asyncPath(silent)).set(bearer(sara)).send({}).expect(422);
+      await http().post(asyncPath(KARIM)).send({}).expect(401);
+    });
+
+    it('answers 409 with the running run id when the lead already has a run in progress; a sync POST is unaffected', async () => {
+      const leadId = await newLead(sara, 'Async second run', [{ direction: 'inbound', body: PAUSED }]);
+      const first = await startAsync(sara, leadId);
+
+      const conflict = await http().post(asyncPath(leadId)).set(bearer(sara)).send({}).expect(409);
+      expect(conflict.body).toEqual({ statusCode: 409, message: expect.any(String), runId: first.id });
+
+      const sync = await http().post(runsPath(leadId)).set(bearer(sara)).send({}).expect(201);
+      expect(sync.body.status).toBe('completed');
+
+      await waitForRun(sara, leadId, first.id);
+      const next = await startAsync(sara, leadId);
+      expect(next.id).not.toBe(first.id);
+      await waitForRun(sara, leadId, next.id);
+    });
+
+    it('lets concurrent async starts on one lead create exactly one run', async () => {
+      const leadId = await newLead(sara, 'Async race', [{ direction: 'inbound', body: PAUSED }]);
+      const responses = await Promise.all(Array.from({ length: 5 }, () => http().post(asyncPath(leadId)).set(bearer(sara)).send({})));
+      const statuses = responses.map((r) => r.status).sort();
+      expect(statuses).toEqual([202, 409, 409, 409, 409]);
+      const winner = responses.find((r) => r.status === 202)!.body;
+      expect(responses.filter((r) => r.status === 409).every((r) => r.body.runId === winner.id)).toBe(true);
+      await waitForRun(sara, leadId, winner.id);
+    });
+
+    it('treats anything but async=true as a sync run', async () => {
+      const leadId = await newLead(sara, 'Async off', [{ direction: 'inbound', body: '2-bedroom apartment in Dubai Marina' }]);
+      const off = await http().post(`${runsPath(leadId)}?async=false`).set(bearer(sara)).send({}).expect(201);
+      expect(off.body.status).toBe('completed');
+      const plain = await http().post(runsPath(leadId)).set(bearer(sara)).send({}).expect(201);
+      expect(plain.body.status).toBe('completed');
+    });
+
+    it('fails a background run in flight when the API shuts down, with an error that says why', async () => {
+      const other = await bootApp();
+      try {
+        const token = await login(other, SARA);
+        const leadId = await newLead(sara, 'Async shutdown', [
+          { direction: 'inbound', body: '2-bedroom apartment in Dubai Marina [fake:pause-after-search:10000]' },
+        ]);
+        const response = await request(other.getHttpServer()).post(asyncPath(leadId)).set(bearer(token)).send({}).expect(202);
+        await waitForRun(sara, leadId, response.body.id, (r) => r.trace.length > 0);
+        await other.close();
+
+        const done = await getRun(sara, leadId, response.body.id);
+        expect(done).toMatchObject({ status: 'failed', error: RESTART_ERROR, requirements: EMPTY_REQUIREMENTS, recommendations: [], proposedActions: [] });
+        expect(done.trace).toHaveLength(1);
+      } finally {
+        await other.close().catch(() => undefined);
+      }
     });
   });
 });
